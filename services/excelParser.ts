@@ -22,29 +22,45 @@ export const parseJiraExcel = async (file: File): Promise<JiraTask[]> => {
 
         // Map Jira standard columns to our internal format
         const tasks: JiraTask[] = jsonData.map((row: any) => {
+          
+          // Original Key (e.g. ISCEPANDROID-1234)
+          const originalKey = cleanStr(row['Inward issue link (Relates)_1'] || row['Inward issue link (Relates)'] || row['Issue key'] || row['Key'] || 'N/A');
+          
+          // Backlog ID Logic
+          // Default to '-' as requested
+          let backlogId = '-';
+          
+          // CCRSP Override Logic
+          // Check common "Linked Issues" columns
+          const linkedIssuesText = cleanStr(
+            row['Linked Issues'] || 
+            row['Linked issues'] || 
+            row['Bağlı Kayıtlar'] || 
+            row['Outward issue link (Relates)'] || 
+            ''
+          );
+          
+          const ccrspMatch = linkedIssuesText.match(/(CCRSP-\d+)/);
+          if (ccrspMatch) {
+            backlogId = ccrspMatch[0];
+          }
+
           return {
-            // Priority checks for Backlog ID
-            backlogId: cleanStr(row['Inward issue link (Relates)_1'] || row['Inward issue link (Relates)'] || row['Issue key'] || row['Key'] || 'N/A'),
+            backlogId: backlogId,
             
-            // Priority checks for Summary
             summary: cleanStr(row['Summary'] || row['Özet'] || 'N/A'),
             
-            // Priority checks for Epic Name
             epicName: cleanStr(row['Parent summary'] || row['Parent Summary'] || row['Custom field (Epic Name)'] || row['Epic Link'] || row['Epic Name'] || 'No Epic'),
             
-            // Fix Version
             fixVersion: cleanStr(row['Fix Version/s'] || row['Fix version/s'] || row['Sürüm'] || 'Unscheduled'),
             
-            // Fix Build
             fixBuild: cleanStr(row['Custom field (Fix Build)'] || row['Fix Build'] || row['Build'] || 'General'),
             
-            // Status
             status: cleanStr(row['Status'] || row['Durum'] || 'Unknown'),
             
-            // Original Key for Platform Detection
-            originalKey: cleanStr(row['Issue key'] || row['Key']),
+            // Keep original key for platform detection logic (ISCEPANDROID etc.)
+            originalKey: originalKey,
 
-            // Status Category Changed
             statusCategoryChanged: cleanStr(row['Status Category Changed'] || row['Statü Değişim Tarihi'] || row['Updated'] || '')
           };
         });
