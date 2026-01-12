@@ -8,6 +8,8 @@ export interface JiraTask {
   status: string;
   originalKey: string; // Added for platform detection (ISCEPANDROID/ISCEPIPHONE)
   statusCategoryChanged: string; // New field for reporting history info
+  issueType: string; // New field to distinguish Bug vs Story
+  externalRcId: string; // New field for ISCEPEXTRC-xxxx
 }
 
 export interface ReportConfig {

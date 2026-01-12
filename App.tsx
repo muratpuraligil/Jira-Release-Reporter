@@ -111,6 +111,15 @@ const App: React.FC = () => {
     });
   }, [tasks, filterCutoffTimestamp]); 
 
+  // Split into Stories/CRs and Bugs
+  const storyTasks = useMemo(() => {
+    return filteredTasks.filter(t => t.issueType.toLowerCase() !== 'bug');
+  }, [filteredTasks]);
+
+  const bugTasks = useMemo(() => {
+    return filteredTasks.filter(t => t.issueType.toLowerCase() === 'bug');
+  }, [filteredTasks]);
+
   const detectedPlatform = useMemo(() => {
     const keys = tasks.map(t => t.originalKey ? t.originalKey.toUpperCase() : '');
     if (keys.some(k => k.includes('ISCEPANDROID'))) return 'ANDROID';
@@ -140,11 +149,11 @@ const App: React.FC = () => {
   }, [filteredTasks, filterCutoffTimestamp]);
 
   const getEpicRowSpan = (taskIndex: number) => {
-    const currentTask = filteredTasks[taskIndex];
-    if (taskIndex > 0 && filteredTasks[taskIndex - 1].epicName === currentTask.epicName) return 0;
+    const currentTask = storyTasks[taskIndex];
+    if (taskIndex > 0 && storyTasks[taskIndex - 1].epicName === currentTask.epicName) return 0;
     let span = 1;
-    for (let i = taskIndex + 1; i < filteredTasks.length; i++) {
-      if (filteredTasks[i].epicName === currentTask.epicName) span++; else break;
+    for (let i = taskIndex + 1; i < storyTasks.length; i++) {
+      if (storyTasks[i].epicName === currentTask.epicName) span++; else break;
     }
     return span;
   };
@@ -156,13 +165,14 @@ const App: React.FC = () => {
     
     html2pdf()
       .set({
-        margin: 10,
+        margin: 0,
         filename: `Jira_Release_${displayVersion || 'Report'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: {
           scale: 2,
           useCORS: true,
-          logging: false
+          logging: false,
+          scrollY: 0 // SAYFA KAYMASINI ENGELLEMEK İÇİN EKLENDİ (1. Sayfa boş gelme sorunu çözümü)
         },
         jsPDF: {
           unit: 'mm',
@@ -182,12 +192,12 @@ const App: React.FC = () => {
     if (!reportRef.current) return;
     const today = new Date().toLocaleDateString('tr-TR');
     
-    const allTasksForMail = filteredTasks;
-    const borderStyle = 'border: 1px solid black; border-collapse: collapse; padding: 5px; font-family: Calibri, sans-serif; font-size: 11pt; vertical-align: top;';
+    const borderStyle = 'border: 1px solid black; border-collapse: collapse; padding: 4px; font-family: Calibri, sans-serif; font-size: 11pt; vertical-align: top;'; // Padding 5px -> 4px
     const headerBlue = 'background-color: #0052cc; color: white; font-weight: bold; vertical-align: middle;';
     const bgGray = 'background-color: #f2f2f2; font-weight: bold; vertical-align: middle;';
     
-    let tasksRows = '';
+    // --- STORY TABLE GENERATION ---
+    let storyRows = '';
     const getActiveEpicRowSpan = (taskIndex: number, list: JiraTask[]) => {
         const currentTask = list[taskIndex];
         if (taskIndex > 0 && list[taskIndex - 1].epicName === currentTask.epicName) return 0;
@@ -198,9 +208,9 @@ const App: React.FC = () => {
         return span;
     };
 
-    for (let i = 0; i < allTasksForMail.length; i++) {
-      const t = allTasksForMail[i];
-      const rowSpan = getActiveEpicRowSpan(i, allTasksForMail);
+    for (let i = 0; i < storyTasks.length; i++) {
+      const t = storyTasks[i];
+      const rowSpan = getActiveEpicRowSpan(i, storyTasks);
       const taskTimestamp = parseJiraDate(t.statusCategoryChanged);
       const isGrayedOut = filterCutoffTimestamp !== null && taskTimestamp <= filterCutoffTimestamp;
       
@@ -209,22 +219,44 @@ const App: React.FC = () => {
 
       let epicCell = '';
       if (rowSpan > 0) {
-        epicCell = `<td rowspan="${rowSpan}" style="${borderStyle} vertical-align: middle; ${isGrayedOut ? 'background-color: #cbd5e1;' : 'background-color: #ffffff;'}">${t.epicName}</td>`;
+        epicCell = `<td rowspan="${rowSpan}" style="${borderStyle} vertical-align: middle; ${isGrayedOut ? 'background-color: #cbd5e1; font-style: italic;' : 'background-color: #ffffff;'}">${t.epicName}</td>`;
       }
       
       const displayId = t.backlogId;
       const idCellContent = displayId !== '-' ? `<a href="https://commencis.atlassian.net/browse/${displayId}" style="color: blue; text-decoration: underline;">${displayId}</a>` : displayId;
       
-      tasksRows += `<tr>
+      storyRows += `<tr>
         <td style="${borderStyle} ${textStyle} ${cellBg}">${idCellContent}</td>
         ${epicCell}
         <td style="${borderStyle} ${textStyle} ${cellBg}">${t.summary}</td>
       </tr>`;
     }
 
+    // --- BUG TABLE GENERATION ---
+    let bugRows = '';
+    if (bugTasks.length > 0) {
+        for (let i = 0; i < bugTasks.length; i++) {
+            const t = bugTasks[i];
+            const taskTimestamp = parseJiraDate(t.statusCategoryChanged);
+            const isGrayedOut = filterCutoffTimestamp !== null && taskTimestamp <= filterCutoffTimestamp;
+            const textStyle = isGrayedOut ? 'color: #334155; font-style: italic;' : 'color: #000000;';
+            const cellBg = isGrayedOut ? 'background-color: #cbd5e1;' : 'background-color: #ffffff;';
+
+            // Use externalRcId as Defect ID
+            const defectId = t.externalRcId !== '-' ? t.externalRcId : '-';
+
+            bugRows += `<tr>
+                <td style="${borderStyle} ${textStyle} ${cellBg}">${defectId}</td>
+                <td colspan="2" style="${borderStyle} ${textStyle} ${cellBg}">${t.summary}</td>
+            </tr>`;
+        }
+    } else {
+        bugRows = `<tr><td style="${borderStyle} height: 20px;">&nbsp;</td><td colspan="2" style="${borderStyle}">&nbsp;</td></tr>`;
+    }
+
     const infoRow = filterCutoffTimestamp !== null ? `
         <tr>
-          <td colspan="3" style="padding-bottom: 8px; border: none;">
+          <td colspan="3" style="padding-bottom: 4px; border: none;">
             <table border="0" cellpadding="0" cellspacing="0" style="margin: 0; padding: 0;">
               <tr>
                 <td style="vertical-align: middle; padding-right: 6px;">
@@ -251,25 +283,25 @@ const App: React.FC = () => {
         <tr><td style="${borderStyle}">&nbsp;</td><td style="${borderStyle} ${bgGray}">Proje Bilgisi:</td><td style="${borderStyle}">İşCep Projesi</td></tr>
         <tr><td style="${borderStyle}">&nbsp;</td><td style="${borderStyle} ${bgGray}">Sürüm Bilgisi:</td><td style="${borderStyle}">${displayVersion}</td></tr>
         <tr><td style="${borderStyle}">&nbsp;</td><td style="${borderStyle} ${bgGray}">Platform:</td><td style="${borderStyle}">${detectedPlatform}</td></tr>
-        <tr><td colspan="3" style="height: 10px; border: none;"></td></tr>
+        <tr><td colspan="3" style="height: 5px; border: none;"></td></tr>
         ${infoRow}
         <tr><td colspan="3" style="${borderStyle} ${headerBlue} text-align: center;">Talepler</td></tr>
         <tr><td style="${borderStyle} ${bgGray}">Backlog ID</td><td style="${borderStyle} ${bgGray}">Epic Name</td><td style="${borderStyle} ${bgGray}">Açıklama</td></tr>
-        ${tasksRows}
-        <tr><td colspan="3" style="height: 10px; border: none;"></td></tr>
+        ${storyRows}
+        <tr><td colspan="3" style="height: 5px; border: none;"></td></tr>
         <tr><td colspan="3" style="${borderStyle} ${headerBlue} text-align: center;">Tamamlanan Kayıtlar</td></tr>
         <tr><td style="${borderStyle} ${bgGray}">Defect ID</td><td colspan="2" style="${borderStyle} ${bgGray}">Açıklama</td></tr>
-        <tr><td style="${borderStyle} height: 20px;">&nbsp;</td><td colspan="2" style="${borderStyle}">&nbsp;</td></tr>
-        <tr><td colspan="3" style="height: 10px; border: none;"></td></tr>
+        ${bugRows}
+        <tr><td colspan="3" style="height: 5px; border: none;"></td></tr>
         <tr><td style="${borderStyle} ${headerBlue}">KISIM B</td><td colspan="2" style="${borderStyle} ${headerBlue}">Sürüm Detayları</td></tr>
         <tr><td colspan="3" style="${borderStyle} ${bgGray}">1. Belirtilmesi Gerekenler</td></tr>
         <tr><td colspan="3" style="${borderStyle}"><ul><li>&nbsp;</li></ul></td></tr>
         <tr><td colspan="3" style="${borderStyle} ${bgGray}">2. Bilinen Durumlar:</td></tr>
         <tr><td colspan="3" style="${borderStyle}"><ul><li>&nbsp;</li></ul></td></tr>
-        <tr><td colspan="3" style="height: 10px; border: none;"></td></tr>
+        <tr><td colspan="3" style="height: 5px; border: none;"></td></tr>
         <tr><td style="${borderStyle} ${headerBlue}">KISIM C</td><td colspan="2" style="${borderStyle} ${headerBlue}">Paket Detayları</td></tr>
-        <tr><td colspan="3" style="${borderStyle}">Dokümanda iletilen geliştirmeleri test edebileceğiniz ${detectedPlatform} paketini aşağıdaki link üzerinden indirebilirsiniz.<br/><br/><strong>${detectedPlatform} Platform Paket Bilgileri:</strong></td></tr>
-        <tr><td style="${borderStyle} color: blue; text-decoration: underline;">Link_Gelecek</td><td style="${borderStyle}">${today}</td><td style="${borderStyle}">Hash_Gelecek</td></tr>
+        <tr><td colspan="3" style="${borderStyle}">Dokümanda iletilen geliştirmeleri test edebileceğiniz ${detectedPlatform} paketini aşağıdaki link üzerinden indirebilirsiniz.<br/><br/><strong>{detectedPlatform} Platform Paket Bilgileri:</strong></td></tr>
+        <tr><td style="${borderStyle} color: blue; text-decoration: underline;">Paket URL</td><td style="${borderStyle}">Created</td><td style="${borderStyle}">Revision</td></tr>
       </table>
     `;
     
@@ -310,7 +342,7 @@ const App: React.FC = () => {
             {status === ReportStatus.LOADED && (
               <>
                 <button onClick={handleReset} className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-4 py-2 rounded-md transition flex items-center gap-2 text-sm font-medium shadow-sm"><RotateCcw className="w-4 h-4" />Yeni Rapor</button>
-                <button onClick={handleDownloadPDF} className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-md transition flex items-center gap-2 text-sm font-medium shadow-sm"><FileDown className="w-4 h-4" />PDF İndir</button>
+                <button onClick={handleDownloadPDF} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition flex items-center gap-2 text-sm font-medium shadow-sm"><FileDown className="w-4 h-4" />PDF İndir</button>
                 <button onClick={handleCopyToEmail} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition flex items-center gap-2 text-sm font-medium shadow-sm"><Copy className="w-4 h-4" />Mail için Kopyala</button>
               </>
             )}
@@ -365,7 +397,7 @@ const App: React.FC = () => {
               </table>
 
               {filterCutoffTimestamp !== null && (
-                <div style={{ padding: '8px 0', border: 'none' }} className="no-print">
+                <div style={{ padding: '2px 0', border: 'none' }} className="no-print">
                   <table style={{ border: 'none' }}>
                     <tr style={{ border: 'none' }}>
                       <td style={{ border: 'none', width: '24px', paddingRight: '4px', verticalAlign: 'middle' }}>
@@ -379,7 +411,7 @@ const App: React.FC = () => {
                 </div>
               )}
               
-              <table style={{ marginTop: '10px' }}>
+              <table style={{ marginTop: '5px' }}>
                 <colgroup>
                     <col style={{ width: '15%' }} />
                     <col style={{ width: '20%' }} />
@@ -390,7 +422,7 @@ const App: React.FC = () => {
                   <tr className="bg-gray"><th>Backlog ID</th><th>Epic Name</th><th>Açıklama</th></tr>
                 </thead>
                 <tbody>
-                  {filteredTasks.map((task, idx) => {
+                  {storyTasks.map((task, idx) => {
                     const rowSpan = getEpicRowSpan(idx);
                     const taskTimestamp = parseJiraDate(task.statusCategoryChanged);
                     const isGrayedOut = filterCutoffTimestamp !== null && taskTimestamp <= filterCutoffTimestamp;
@@ -398,7 +430,7 @@ const App: React.FC = () => {
                       <tr key={idx} className={isGrayedOut ? "bg-slate-300" : ""}>
                         <td style={{ fontStyle: isGrayedOut ? 'italic' : 'normal' }}>{task.backlogId}</td>
                         {rowSpan > 0 && (
-                          <td rowSpan={rowSpan} className={isGrayedOut ? "bg-slate-300" : "bg-white"} style={{ verticalAlign: 'middle' }}>
+                          <td rowSpan={rowSpan} className={isGrayedOut ? "bg-slate-300" : "bg-white"} style={{ verticalAlign: 'middle', fontStyle: isGrayedOut ? 'italic' : 'normal' }}>
                             {task.epicName}
                           </td>
                         )}
@@ -409,7 +441,7 @@ const App: React.FC = () => {
                 </tbody>
               </table>
 
-              <table style={{ marginTop: '20px' }}>
+              <table style={{ marginTop: '10px' }}>
                 <colgroup>
                     <col style={{ width: '15%' }} />
                     <col style={{ width: '85%' }} />
@@ -418,10 +450,26 @@ const App: React.FC = () => {
                   <tr><td colSpan={2} className="header-blue text-center">Tamamlanan Kayıtlar</td></tr>
                   <tr className="bg-gray"><th>Defect ID</th><th>Açıklama</th></tr>
                 </thead>
-                <tbody><tr style={{ height: '40px' }}><td></td><td></td></tr></tbody>
+                <tbody>
+                  {bugTasks.length > 0 ? (
+                    bugTasks.map((task, idx) => {
+                        const taskTimestamp = parseJiraDate(task.statusCategoryChanged);
+                        const isGrayedOut = filterCutoffTimestamp !== null && taskTimestamp <= filterCutoffTimestamp;
+                        const defectId = task.externalRcId !== '-' ? task.externalRcId : '-';
+                        return (
+                            <tr key={idx} className={isGrayedOut ? "bg-slate-300" : ""}>
+                                <td style={{ fontStyle: isGrayedOut ? 'italic' : 'normal' }}>{defectId}</td>
+                                <td style={{ fontStyle: isGrayedOut ? 'italic' : 'normal' }}>{task.summary}</td>
+                            </tr>
+                        );
+                    })
+                  ) : (
+                    <tr style={{ height: '40px' }}><td></td><td></td></tr>
+                  )}
+                </tbody>
               </table>
 
-              <table style={{ marginTop: '20px' }}>
+              <table style={{ marginTop: '10px' }}>
                 <colgroup>
                     <col style={{ width: '15%' }} />
                     <col style={{ width: '20%' }} />
@@ -430,13 +478,13 @@ const App: React.FC = () => {
                 <thead><tr><td className="header-blue">KISIM B</td><td colSpan={2} className="header-blue">Sürüm Detayları</td></tr></thead>
                 <tbody>
                   <tr><td colSpan={3} className="bg-gray">1. Belirtilmesi Gerekenler</td></tr>
-                  <tr><td colSpan={3} style={{ height: '50px' }}></td></tr>
+                  <tr><td colSpan={3} style={{ height: '50px', verticalAlign: 'top' }}><ul style={{ listStyleType: 'disc', paddingLeft: '20px', margin: 0 }}><li>&nbsp;</li></ul></td></tr>
                   <tr><td colSpan={3} className="bg-gray">2. Bilinen Durumlar:</td></tr>
-                  <tr><td colSpan={3} style={{ height: '50px' }}></td></tr>
+                  <tr><td colSpan={3} style={{ height: '50px', verticalAlign: 'top' }}><ul style={{ listStyleType: 'disc', paddingLeft: '20px', margin: 0 }}><li>&nbsp;</li></ul></td></tr>
                 </tbody>
               </table>
 
-              <table style={{ marginTop: '20px' }}>
+              <table style={{ marginTop: '10px' }}>
                 <colgroup>
                     <col style={{ width: '15%' }} />
                     <col style={{ width: '20%' }} />
@@ -445,7 +493,7 @@ const App: React.FC = () => {
                 <thead><tr><td className="header-blue">KISIM C</td><td colSpan={2} className="header-blue">Paket Detayları</td></tr></thead>
                 <tbody>
                   <tr><td colSpan={3} style={{ padding: '16px' }}>Dokümanda iletilen geliştirmeleri test edebileceğiniz {detectedPlatform} paketini aşağıdaki link üzerinden indirebilirsiniz.<br/><br/><strong>{detectedPlatform} Platform Paket Bilgileri:</strong></td></tr>
-                  <tr><td style={{ color: 'blue', textDecoration: 'underline' }}>Link_Gelecek</td><td>{new Date().toLocaleDateString('tr-TR')}</td><td>Hash_Gelecek</td></tr>
+                  <tr><td style={{ color: 'blue', textDecoration: 'underline' }}>Paket URL</td><td>Created</td><td>Revision</td></tr>
                 </tbody>
               </table>
             </div>
@@ -457,13 +505,17 @@ const App: React.FC = () => {
                   <table className="w-full text-sm border-none">
                     <thead><tr className="bg-slate-100"><th className="p-2 border text-left">ID</th><th className="p-2 border text-left">Summary</th><th className="p-2 border text-left">Tarih</th></tr></thead>
                     <tbody>
-                      {historyViewTasks.map((t, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50 cursor-pointer" onClick={() => handleDateClick(t.statusCategoryChanged)}>
-                          <td className="p-2 border">{t.backlogId}</td>
-                          <td className="p-2 border truncate max-w-xs">{t.summary}</td>
-                          <td className="p-2 border text-blue-600 font-medium">{t.statusCategoryChanged}</td>
-                        </tr>
-                      ))}
+                      {historyViewTasks.map((t, idx) => {
+                        // Bug ise ISCEPEXTRC (veya externalRcId) göster, değilse BacklogID (CCRSP)
+                        const displayId = (t.issueType.toLowerCase() === 'bug' && t.externalRcId !== '-') ? t.externalRcId : t.backlogId;
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50 cursor-pointer" onClick={() => handleDateClick(t.statusCategoryChanged)}>
+                            <td className="p-2 border">{displayId}</td>
+                            <td className="p-2 border truncate max-w-xs">{t.summary}</td>
+                            <td className="p-2 border text-blue-600 font-medium">{t.statusCategoryChanged}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

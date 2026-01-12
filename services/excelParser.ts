@@ -26,23 +26,26 @@ export const parseJiraExcel = async (file: File): Promise<JiraTask[]> => {
           // Original Key (e.g. ISCEPANDROID-1234)
           const originalKey = cleanStr(row['Inward issue link (Relates)_1'] || row['Inward issue link (Relates)'] || row['Issue key'] || row['Key'] || 'N/A');
           
-          // Backlog ID Logic
-          // Default to '-' as requested
+          // Issue Type extraction
+          const issueType = cleanStr(row['Issue Type'] || row['Issue type'] || row['Sorun Tipi'] || 'Story');
+
+          // --- LINKED ISSUES LOGIC UPDATE ---
+          // Jira CSV exports split links into many columns (e.g. 'Inward issue link (Relates)', 'Outward issue link (Cloners)').
+          // Instead of guessing column names, we scan all values in the row for the ID patterns.
+          const allRowValues = Object.values(row).map(v => String(v)).join(' ');
+
+          // Backlog ID Logic (CCRSP)
           let backlogId = '-';
-          
-          // CCRSP Override Logic
-          // Check common "Linked Issues" columns
-          const linkedIssuesText = cleanStr(
-            row['Linked Issues'] || 
-            row['Linked issues'] || 
-            row['Bağlı Kayıtlar'] || 
-            row['Outward issue link (Relates)'] || 
-            ''
-          );
-          
-          const ccrspMatch = linkedIssuesText.match(/(CCRSP-\d+)/);
+          const ccrspMatch = allRowValues.match(/(CCRSP-\d+)/);
           if (ccrspMatch) {
             backlogId = ccrspMatch[0];
+          }
+
+          // External RC ID Logic (ISCEPEXTRC)
+          let externalRcId = '-';
+          const extRcMatch = allRowValues.match(/(ISCEPEXTRC-\d+)/);
+          if (extRcMatch) {
+            externalRcId = extRcMatch[0];
           }
 
           return {
@@ -54,14 +57,18 @@ export const parseJiraExcel = async (file: File): Promise<JiraTask[]> => {
             
             fixVersion: cleanStr(row['Fix Version/s'] || row['Fix version/s'] || row['Sürüm'] || 'Unscheduled'),
             
-            fixBuild: cleanStr(row['Custom field (Fix Build)'] || row['Fix Build'] || row['Build'] || 'General'),
+            // Updated to check 'Custom field (Fix Build #)' which is common in CSV exports
+            fixBuild: cleanStr(row['Custom field (Fix Build #)'] || row['Custom field (Fix Build)'] || row['Fix Build'] || row['Build'] || 'General'),
             
             status: cleanStr(row['Status'] || row['Durum'] || 'Unknown'),
             
             // Keep original key for platform detection logic (ISCEPANDROID etc.)
             originalKey: originalKey,
 
-            statusCategoryChanged: cleanStr(row['Status Category Changed'] || row['Statü Değişim Tarihi'] || row['Updated'] || '')
+            statusCategoryChanged: cleanStr(row['Status Category Changed'] || row['Statü Değişim Tarihi'] || row['Updated'] || ''),
+
+            issueType: issueType,
+            externalRcId: externalRcId
           };
         });
 

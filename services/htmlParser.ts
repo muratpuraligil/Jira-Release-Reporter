@@ -29,6 +29,11 @@ export const parseJiraHtml = async (file: File): Promise<JiraTask[]> => {
            txt.includes('linked');
   });
 
+  const issueTypeIndex = headers.findIndex(h => {
+    const txt = h.textContent?.toLowerCase().trim() || '';
+    return txt.includes('issue type') || txt.includes('sorun tipi');
+  });
+
   // Extract rows, excluding those that are likely headers or empty
   let rows = Array.from(table.querySelectorAll('tbody tr, tr')).filter(r => {
     // A data row must have cells (td) and not be a header row
@@ -56,26 +61,35 @@ export const parseJiraHtml = async (file: File): Promise<JiraTask[]> => {
     // 1. Original Key (e.g. ISCEPANDROID-1234)
     const originalKey = getText('issuekey') || getText('key') || row.querySelector('.key')?.textContent?.trim() || getByIndex(headers.findIndex(h => h.textContent?.toLowerCase().includes('key'))) || 'N/A';
 
+    // Issue Type
+    let issueType = getText('issuetype');
+    if (!issueType && issueTypeIndex !== -1) {
+        issueType = getByIndex(issueTypeIndex);
+    }
+    // Fallback if extracting failed but row has typical bug markers? No, default to Story to be safe or keep empty.
+    if (!issueType) issueType = 'Story';
+
     // 2. Backlog ID Logic (Prioritize CCRSP key)
     let backlogId = '-';
+    let externalRcId = '-';
+    let linkedText = '';
 
     // Check specific "Linked Issues" column first
     if (linkedIssuesIndex !== -1) {
-        const linkedText = getByIndex(linkedIssuesIndex);
-        const ccrspMatch = linkedText.match(/(CCRSP-\d+)/);
-        if (ccrspMatch) {
-            backlogId = ccrspMatch[0];
-        }
+        linkedText = getByIndex(linkedIssuesIndex);
+    } else {
+        // Fallback: search whole row text for linked issue pattern if column not found
+        linkedText = row.textContent || '';
     }
 
-    // SAFETY FALLBACK: If Backlog ID is still '-' but CCRSP exists anywhere in the row text, capture it.
-    // This handles cases where column indexing might be off due to Jira's inconsistent HTML output.
-    if (backlogId === '-') {
-        const fullRowText = row.textContent || '';
-        const globalMatch = fullRowText.match(/(CCRSP-\d+)/);
-        if (globalMatch) {
-            backlogId = globalMatch[0];
-        }
+    const ccrspMatch = linkedText.match(/(CCRSP-\d+)/);
+    if (ccrspMatch) {
+        backlogId = ccrspMatch[0];
+    }
+
+    const extRcMatch = linkedText.match(/(ISCEPEXTRC-\d+)/);
+    if (extRcMatch) {
+        externalRcId = extRcMatch[0];
     }
 
     // 3. Summary
@@ -109,7 +123,9 @@ export const parseJiraHtml = async (file: File): Promise<JiraTask[]> => {
       fixBuild,
       status,
       originalKey,
-      statusCategoryChanged
+      statusCategoryChanged,
+      issueType,
+      externalRcId
     };
   });
 
