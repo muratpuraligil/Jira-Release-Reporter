@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jira Release Reporter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* ANA TABLO GÖRÜNÜMÜ VE PDF AYARLARI */
+        #pdf-root {
+            width: 794px;
+            /* A4 genişlik (96 DPI) */
+            margin: 0 auto;
+            padding: 30px;
+            /* PDF margin 0 olacağı için iç boşluk artırıldı */
+            box-sizing: border-box;
+            background: white;
+            color: black;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        #pdf-root table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            border: 1px solid #000;
+        }
+
+        #pdf-root td,
+        #pdf-root th {
+            padding: 4px;
+            /* Padding 8px'den 4px'e düşürüldü */
+            font-size: 12px;
+            vertical-align: top;
+            word-break: break-word;
+            border: 1px solid black;
+        }
+
+        /* Başlıklar ve özel alanlar için border/renk düzeltmeleri */
+        #pdf-root .header-blue {
+            background-color: #0052cc !important;
+            color: white !important;
+            font-weight: bold;
+            -webkit-print-color-adjust: exact;
+        }
+
+        #pdf-root .bg-gray {
+            background-color: #f2f2f2 !important;
+            font-weight: bold;
+            -webkit-print-color-adjust: exact;
+        }
+
+        #pdf-root .bg-slate-300 {
+            background-color: #cbd5e1 !important;
+            -webkit-print-color-adjust: exact;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+  <script type="module" crossorigin src="/Jira-Release-Reporter/assets/index-jOHoYdw1.js"></script>
+</head>
+
+<body class="bg-slate-50 text-slate-900">
+    <div id="root"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</body>
+
+</html>
