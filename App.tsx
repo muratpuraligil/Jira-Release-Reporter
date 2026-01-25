@@ -244,9 +244,10 @@ const App: React.FC = () => {
 
             // Use externalRcId as Defect ID
             const defectId = t.externalRcId !== '-' ? t.externalRcId : '-';
+            const defectIdContent = defectId !== '-' ? `<a href="https://commencis.atlassian.net/browse/${defectId}" style="color: blue; text-decoration: underline;">${defectId}</a>` : defectId;
 
             bugRows += `<tr>
-                <td style="${borderStyle} ${textStyle} ${cellBg}">${defectId}</td>
+                <td style="${borderStyle} ${textStyle} ${cellBg}">${defectIdContent}</td>
                 <td colspan="2" style="${borderStyle} ${textStyle} ${cellBg}">${t.summary}</td>
             </tr>`;
         }
@@ -428,7 +429,20 @@ const App: React.FC = () => {
                     const isGrayedOut = filterCutoffTimestamp !== null && taskTimestamp <= filterCutoffTimestamp;
                     return (
                       <tr key={idx} className={isGrayedOut ? "bg-slate-300" : ""}>
-                        <td style={{ fontStyle: isGrayedOut ? 'italic' : 'normal' }}>{task.backlogId}</td>
+                        <td style={{ fontStyle: isGrayedOut ? 'italic' : 'normal' }}>
+                          {task.backlogId !== '-' ? (
+                            <a 
+                              href={`https://commencis.atlassian.net/browse/${task.backlogId}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              style={{ color: 'blue', textDecoration: 'underline' }}
+                            >
+                              {task.backlogId}
+                            </a>
+                          ) : (
+                            task.backlogId
+                          )}
+                        </td>
                         {rowSpan > 0 && (
                           <td rowSpan={rowSpan} className={isGrayedOut ? "bg-slate-300" : "bg-white"} style={{ verticalAlign: 'middle', fontStyle: isGrayedOut ? 'italic' : 'normal' }}>
                             {task.epicName}
@@ -458,7 +472,20 @@ const App: React.FC = () => {
                         const defectId = task.externalRcId !== '-' ? task.externalRcId : '-';
                         return (
                             <tr key={idx} className={isGrayedOut ? "bg-slate-300" : ""}>
-                                <td style={{ fontStyle: isGrayedOut ? 'italic' : 'normal' }}>{defectId}</td>
+                                <td style={{ fontStyle: isGrayedOut ? 'italic' : 'normal' }}>
+                                  {defectId !== '-' ? (
+                                    <a
+                                      href={`https://commencis.atlassian.net/browse/${defectId}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: 'blue', textDecoration: 'underline' }}
+                                    >
+                                      {defectId}
+                                    </a>
+                                  ) : (
+                                    defectId
+                                  )}
+                                </td>
                                 <td style={{ fontStyle: isGrayedOut ? 'italic' : 'normal' }}>{task.summary}</td>
                             </tr>
                         );
@@ -500,7 +527,29 @@ const App: React.FC = () => {
 
             {historyViewTasks.length > 0 && (
               <div className="bg-white p-6 rounded-lg border border-slate-300 no-print">
-                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><History className="w-5 h-5" /> Tarih Bazlı Filtrele</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                    <History className="w-5 h-5" /> Tarih Bazlı Filtrele
+                  </h3>
+                  {filterCutoffTimestamp !== null && (
+                    <button 
+                      onClick={() => setFilterCutoffTimestamp(null)}
+                      className="text-sm text-red-600 hover:text-red-800 underline font-medium transition-colors"
+                    >
+                      Filtreyi Kaldır
+                    </button>
+                  )}
+                </div>
+                
+                <div className="flex items-start gap-2 mb-4">
+                  <div className="flex-shrink-0 w-4 h-4 rounded-full border-[1.5px] border-orange-600 flex items-center justify-center mt-[2px]">
+                    <span className="text-[10px] font-bold text-orange-600 leading-none not-italic">i</span>
+                  </div>
+                  <p className="text-orange-600 font-bold italic text-[12.5px] leading-tight">
+                    En son yapılan Paket paylaşım tarih saatine göre bu listeden seçim yapılarak gönderilmiş kayıtlar pasif duruma getilir.
+                  </p>
+                </div>
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm border-none">
                     <thead><tr className="bg-slate-100"><th className="p-2 border text-left">ID</th><th className="p-2 border text-left">Summary</th><th className="p-2 border text-left">Tarih</th></tr></thead>
