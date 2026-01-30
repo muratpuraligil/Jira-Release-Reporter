@@ -1,5 +1,5 @@
 {
   "name": "Jira Release Reporter",
-  "description": "Jira dışa aktarma (Excel/CSV) dosyalarından otomatik olarak sürüm ve build bazlı paket paylaşım raporları oluşturan, Gemini destekli profesyonel raporlama aracı.",
+  "description": "Jira dışa aktarma dosyalarından profesyonel sürüm ve paket paylaşım raporları oluşturan teknik test yönetim aracı.",
   "requestFramePermissions": []
 }
