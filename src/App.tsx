@@ -10,9 +10,10 @@ import {
   RotateCcw,
   FileDown
 } from 'lucide-react';
-import { parseJiraExcel } from './services/excelParser';
-import { parseJiraHtml } from './services/htmlParser';
-import { JiraTask, ReportStatus } from './types';
+import { parseJiraExcel } from '../services/excelParser';
+import { parseJiraHtml } from '../services/htmlParser';
+import { JiraTask, ReportStatus } from '../types';
+
 
 // html2pdf kütüphanesini dışarıdan alıyoruz
 declare const html2pdf: any;
