@@ -1,6 +1,6 @@
 
 // import { GoogleGenAI } from "@google/genai";
-import { JiraTask } from "../types";
+// import { JiraTask } from "../types";
 
 /**
  * AI özelliği bu versiyonda stub (etkisiz) hale getirilmiştir.

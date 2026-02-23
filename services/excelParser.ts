@@ -1,7 +1,6 @@
 
 import { JiraTask } from '../types';
-
-declare const XLSX: any;
+import * as XLSX from 'xlsx';
 
 const cleanStr = (val: any): string => {
   if (val === undefined || val === null) return '';

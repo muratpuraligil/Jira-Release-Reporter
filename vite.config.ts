@@ -1,7 +1,11 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  plugins: [react()],
-  base: '/Jira-Release-Reporter/', // 🔴 repo adı BİREBİR
-})
+  plugins: [
+    react(),
+    tailwindcss(),
+  ],
+  base: './', // GitHub Pages için gerekli
+});

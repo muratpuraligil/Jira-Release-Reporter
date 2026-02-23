@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f1f5f9; /* bg-slate-100 */
+    color: #0f172a; /* text-slate-900 */
+}
+
+/* ANA TABLO GÖRÜNÜMÜ VE PDF AYARLARI */
+#pdf-root {
+    width: 794px;          /* A4 genişlik (96 DPI) */
+    padding: 40px;         /* PDF kenar boşluğu */
+    box-sizing: border-box;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+}
+
+#pdf-root table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    border: 1px solid #000000;
+    margin-bottom: 0;
+}
+
+#pdf-root td,
+#pdf-root th {
+    padding: 8px 10px;
+    font-size: 12px;
+    vertical-align: top;
+    word-break: break-word;
+    border: 1px solid #000000;
+    color: #000000 !important;
+}
+
+/* Başlıklar ve özel alanlar için border/renk düzeltmeleri */
+#pdf-root .header-blue { 
+    background-color: #0052cc !important; 
+    color: #ffffff !important; 
+    font-weight: bold;
+    -webkit-print-color-adjust: exact; 
+}
+#pdf-root .bg-gray { 
+    background-color: #f2f2f2 !important; 
+    color: #000000 !important;
+    font-weight: bold;
+    -webkit-print-color-adjust: exact; 
+}
+#pdf-root .bg-slate-300 { 
+    background-color: #cbd5e1 !important; 
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact; 
+}
+#pdf-root .bg-white {
+    background-color: #ffffff !important;
+}
+
+#pdf-root a {
+    color: #0000ff !important;
+    text-decoration: underline !important;
+}
+
+@media print {
+    body {
+        background: white;
+    }
+    .no-print {
+        display: none !important;
+    }
+    #pdf-root {
+        box-shadow: none !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+}
