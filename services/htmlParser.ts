@@ -87,7 +87,7 @@ export const parseJiraHtml = async (file: File): Promise<JiraTask[]> => {
         backlogId = ccrspMatch[0];
     }
 
-    const extRcMatch = linkedText.match(/(ISCEPEXTRC-\d+)/);
+    const extRcMatch = linkedText.match(/(ISCEPEXTRC-\d+|ISCOREXT-\d+)/);
     if (extRcMatch) {
         externalRcId = extRcMatch[0];
     }

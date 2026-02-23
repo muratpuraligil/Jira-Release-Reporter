@@ -40,9 +40,9 @@ export const parseJiraExcel = async (file: File): Promise<JiraTask[]> => {
             backlogId = ccrspMatch[0];
           }
 
-          // External RC ID Logic (ISCEPEXTRC)
+          // External RC ID Logic (ISCEPEXTRC or ISCOREXT)
           let externalRcId = '-';
-          const extRcMatch = allRowValues.match(/(ISCEPEXTRC-\d+)/);
+          const extRcMatch = allRowValues.match(/(ISCEPEXTRC-\d+|ISCOREXT-\d+)/);
           if (extRcMatch) {
             externalRcId = extRcMatch[0];
           }
