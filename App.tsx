@@ -13,6 +13,7 @@ import {
 import { parseJiraExcel } from './services/excelParser';
 import { parseJiraHtml } from './services/htmlParser';
 import { JiraTask, ReportStatus } from './types';
+import { APP_VERSION, APP_DATE } from './version';
 
 // html2pdf kütüphanesini dışarıdan alıyoruz
 declare const html2pdf: any;
@@ -535,6 +536,10 @@ const App: React.FC = () => {
           </div>
         )}
       </main>
+
+      <div className="fixed bottom-4 right-4 text-xs text-slate-400 font-mono no-print">
+        v{APP_VERSION} - {APP_DATE}
+      </div>
     </div>
   );
 };
