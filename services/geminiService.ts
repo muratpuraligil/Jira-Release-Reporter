@@ -1,13 +1,29 @@
 
-// import { GoogleGenAI } from "@google/genai";
-// import { JiraTask } from "../types";
+/// <reference types="vite/client" />
+import { GoogleGenAI } from "@google/genai";
+import { JiraTask } from "../types";
 
-/**
- * AI özelliği bu versiyonda stub (etkisiz) hale getirilmiştir.
- * GitHub üzerinde bağımlılık hatası olmaması için import devre dışı bırakıldı.
- */
-export async function generateReleaseSummary(_: any): Promise<string> {
-  throw new Error(
-    "AI özelliği bu versiyonda kapalı. Cloud Run versiyonunu kullanın."
-  );
+export async function generateReleaseSummary(tasks: JiraTask[]): Promise<string> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error("Gemini API anahtarı bulunamadı. Lütfen .env dosyasını kontrol edin.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  const prompt = `
+    Aşağıdaki Jira kayıtlarına göre profesyonel bir sürüm özeti oluştur.
+    Özet, yeni eklenen özellikleri ve düzeltilen hataları içermelidir.
+    
+    Kayıtlar:
+    ${JSON.stringify(tasks, null, 2)}
+  `;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3.1-pro-preview",
+    contents: prompt,
+  });
+
+  return response.text || "Özet oluşturulamadı.";
 }
