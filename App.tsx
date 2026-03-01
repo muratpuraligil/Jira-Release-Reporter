@@ -239,7 +239,7 @@ const App: React.FC = () => {
     executeDownloadPDF();
   };
 
-  const executeCopyToEmail = (isForced: boolean = false) => {
+  const executeCopyToEmail = () => {
     if (!reportRef.current) return;
     const today = new Date().toLocaleDateString('tr-TR');
     const borderStyle = 'border: 1px solid black; border-collapse: collapse; padding: 8px 10px; font-family: Calibri, sans-serif; font-size: 11pt; vertical-align: top;';
@@ -350,23 +350,19 @@ const App: React.FC = () => {
     window.scrollTo(0, 0);
 
     navigator.clipboard.write([clipboardItem]).then(() => {
-      if (isForced) {
-        setSuccessMessage('Mail için kopyalandı.');
-      } else {
-        setSuccessMessage('Tüm kayıtlar ve bölümler kopyalandı!');
-      }
+      setSuccessMessage('Mail için kopyalandı.');
       setTimeout(() => setSuccessMessage(null), 3000);
     });
   };
 
   const handleCopyToEmail = () => {
     if (filterCutoffTimestamp === null && tasks.length > 0) {
-      // Pass a wrapped function that passes isForced = true
-      setPendingAction(() => () => executeCopyToEmail(true));
+      // Pass a wrapped function
+      setPendingAction(() => () => executeCopyToEmail());
       setShowFilterWarning(true);
       return;
     }
-    executeCopyToEmail(false);
+    executeCopyToEmail();
   };
 
   const historyViewTasks = useMemo(() => {
