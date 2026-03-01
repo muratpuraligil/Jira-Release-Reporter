@@ -21,10 +21,10 @@ export const parseJiraExcel = async (file: File): Promise<JiraTask[]> => {
 
         // Map Jira standard columns to our internal format
         const tasks: JiraTask[] = jsonData.map((row: any) => {
-          
+
           // Original Key (e.g. ISCEPANDROID-1234)
           const originalKey = cleanStr(row['Inward issue link (Relates)_1'] || row['Inward issue link (Relates)'] || row['Issue key'] || row['Key'] || 'N/A');
-          
+
           // Issue Type extraction
           const issueType = cleanStr(row['Issue Type'] || row['Issue type'] || row['Sorun Tipi'] || 'Story');
 
@@ -35,38 +35,51 @@ export const parseJiraExcel = async (file: File): Promise<JiraTask[]> => {
 
           // Backlog ID Logic (CCRSP)
           let backlogId = '-';
-          const ccrspMatch = allRowValues.match(/(CCRSP-\d+)/);
+          const ccrspMatch = allRowValues.match(/CCRSP[\s-]*\d+/i);
           if (ccrspMatch) {
-            backlogId = ccrspMatch[0];
+            let m = ccrspMatch[0].replace(/\s+/g, '').toUpperCase();
+            if (!m.includes('-')) m = m.replace('CCRSP', 'CCRSP-');
+            backlogId = m;
           }
 
           // External RC ID Logic (ISCEPEXTRC or ISCOREXT)
           let externalRcId = '-';
-          const extRcMatch = allRowValues.match(/(ISCEPEXTRC-\d+|ISCOREXT-\d+)/);
+          const extRcMatch = allRowValues.match(/(ISCEPEXTRC|ISCOREXT)[\s-]*\d+/i);
           if (extRcMatch) {
-            externalRcId = extRcMatch[0];
+            let m = extRcMatch[0].replace(/\s+/g, '').toUpperCase();
+            if (!m.includes('-')) m = m.replace('ISCEPEXTRC', 'ISCEPEXTRC-').replace('ISCOREXT', 'ISCOREXT-');
+            externalRcId = m;
+          }
+
+          let parsedIssueType = issueType;
+          if (parsedIssueType.toLowerCase() === 'story') {
+            if (externalRcId !== '-') {
+              parsedIssueType = 'Bug';
+            } else if (allRowValues.toLowerCase().includes('accessibilitybug') || allRowValues.toLowerCase().match(/\bbug\b/i)) {
+              parsedIssueType = 'Bug';
+            }
           }
 
           return {
             backlogId: backlogId,
-            
+
             summary: cleanStr(row['Summary'] || row['Özet'] || 'N/A'),
-            
+
             epicName: cleanStr(row['Parent summary'] || row['Parent Summary'] || row['Custom field (Epic Name)'] || row['Epic Link'] || row['Epic Name'] || 'No Epic'),
-            
+
             fixVersion: cleanStr(row['Fix Version/s'] || row['Fix version/s'] || row['Sürüm'] || 'Unscheduled'),
-            
+
             // Updated to check 'Custom field (Fix Build #)' which is common in CSV exports
             fixBuild: cleanStr(row['Custom field (Fix Build #)'] || row['Custom field (Fix Build)'] || row['Fix Build'] || row['Build'] || 'General'),
-            
+
             status: cleanStr(row['Status'] || row['Durum'] || 'Unknown'),
-            
+
             // Keep original key for platform detection logic (ISCEPANDROID etc.)
             originalKey: originalKey,
 
             statusCategoryChanged: cleanStr(row['Status Category Changed'] || row['Statü Değişim Tarihi'] || row['Updated'] || ''),
 
-            issueType: issueType,
+            issueType: parsedIssueType,
             externalRcId: externalRcId
           };
         });

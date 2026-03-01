@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { 
-  Copy, 
-  LayoutDashboard, 
+import {
+  Copy,
+  LayoutDashboard,
   FileText,
   History,
   Smartphone,
@@ -22,10 +22,13 @@ const App: React.FC = () => {
   const [tasks, setTasks] = useState<JiraTask[]>([]);
   const [status, setStatus] = useState<ReportStatus>(ReportStatus.IDLE);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [filterCutoffTimestamp, setFilterCutoffTimestamp] = useState<number | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  
+
+  const [showFilterWarning, setShowFilterWarning] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
   const reportRef = useRef<HTMLDivElement>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -34,7 +37,7 @@ const App: React.FC = () => {
 
     setStatus(ReportStatus.LOADING);
     setError(null);
-    setFilterCutoffTimestamp(null); 
+    setFilterCutoffTimestamp(null);
     setSuccessMessage(null);
 
     try {
@@ -73,40 +76,40 @@ const App: React.FC = () => {
     if (!dateStr) return 0;
     let clean = dateStr.trim().toLowerCase().replace(/\s+/g, ' ');
     const replacements: { [key: string]: string } = {
-        'ocak': 'jan', 'oca': 'jan', 'şubat': 'feb', 'subat': 'feb', 'şub': 'feb', 'sub': 'feb',
-        'mart': 'mar', 'nisan': 'apr', 'nis': 'apr', 'mayıs': 'may', 'haziran': 'jun', 'haz': 'jun',
-        'temmuz': 'jul', 'tem': 'jul', 'ağustos': 'aug', 'agustos': 'aug', 'ağu': 'aug', 'agu': 'aug',
-        'eylül': 'sep', 'eylul': 'sep', 'eyl': 'sep', 'ekim': 'oct', 'eki': 'oct', 'kasım': 'nov',
-        'kasim': 'nov', 'kas': 'nov', 'aralık': 'dec', 'aralik': 'dec', 'ara': 'dec', 'öö': 'am', 'ös': 'pm'
+      'ocak': 'jan', 'oca': 'jan', 'şubat': 'feb', 'subat': 'feb', 'şub': 'feb', 'sub': 'feb',
+      'mart': 'mar', 'nisan': 'apr', 'nis': 'apr', 'mayıs': 'may', 'haziran': 'jun', 'haz': 'jun',
+      'temmuz': 'jul', 'tem': 'jul', 'ağustos': 'aug', 'agustos': 'aug', 'ağu': 'aug', 'agu': 'aug',
+      'eylül': 'sep', 'eylul': 'sep', 'eyl': 'sep', 'ekim': 'oct', 'eki': 'oct', 'kasım': 'nov',
+      'kasim': 'nov', 'kas': 'nov', 'aralık': 'dec', 'aralik': 'dec', 'ara': 'dec', 'öö': 'am', 'ös': 'pm'
     };
     Object.keys(replacements).forEach(key => {
-        const regex = new RegExp(key, 'g');
-        clean = clean.replace(regex, replacements[key]);
+      const regex = new RegExp(key, 'g');
+      clean = clean.replace(regex, replacements[key]);
     });
     clean = clean.replace(/\./g, '/').replace(/-/g, '/');
     let timestamp = Date.parse(clean);
     if (!isNaN(timestamp)) return timestamp;
     const parts = clean.match(/(\d{1,2})[\/](\w{3})[\/](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?:\s+(am|pm))?)?/);
     if (parts) {
-        const [, day, monthStr, yearStr, hourStr, minStr, ampm] = parts;
-        const monthMap: {[key:string]: number} = {jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11};
-        const month = monthMap[monthStr];
-        if (month !== undefined) {
-            let year = parseInt(yearStr);
-            if (year < 100) year += 2000;
-            let hour = hourStr ? parseInt(hourStr) : 0;
-            let min = minStr ? parseInt(minStr) : 0;
-            if (ampm === 'pm' && hour < 12) hour += 12;
-            if (ampm === 'am' && hour === 12) hour = 0;
-            return new Date(year, month, parseInt(day), hour, min).getTime();
-        }
+      const [, day, monthStr, yearStr, hourStr, minStr, ampm] = parts;
+      const monthMap: { [key: string]: number } = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+      const month = monthMap[monthStr];
+      if (month !== undefined) {
+        let year = parseInt(yearStr);
+        if (year < 100) year += 2000;
+        let hour = hourStr ? parseInt(hourStr) : 0;
+        let min = minStr ? parseInt(minStr) : 0;
+        if (ampm === 'pm' && hour < 12) hour += 12;
+        if (ampm === 'am' && hour === 12) hour = 0;
+        return new Date(year, month, parseInt(day), hour, min).getTime();
+      }
     }
     return 0;
   };
 
-  const isApproved = (t: JiraTask) => 
-    t.status.toLowerCase().includes('approved') || 
-    t.status.toLowerCase().includes('onay') || 
+  const isApproved = (t: JiraTask) =>
+    t.status.toLowerCase().includes('approved') ||
+    t.status.toLowerCase().includes('onay') ||
     t.status.toLowerCase().includes('test passed');
 
   const filteredTasks = useMemo(() => {
@@ -119,10 +122,11 @@ const App: React.FC = () => {
       if (isHiddenA !== isHiddenB) return isHiddenA ? 1 : -1;
       return (a.epicName || '').localeCompare(b.epicName || '');
     });
-  }, [tasks, filterCutoffTimestamp]); 
+  }, [tasks, filterCutoffTimestamp]);
 
   const storyTasks = useMemo(() => {
-    return filteredTasks.filter(t => t.issueType.toLowerCase() !== 'bug');
+    // Sadece CCRSP'si olan talepler işleme alınsın (ana kural)
+    return filteredTasks.filter(t => t.issueType.toLowerCase() !== 'bug' && t.backlogId !== '-');
   }, [filteredTasks]);
 
   const bugTasks = useMemo(() => {
@@ -149,7 +153,7 @@ const App: React.FC = () => {
       const partsA = a.split('.').map(Number);
       const partsB = b.split('.').map(Number);
       for (let i = 0; i < 4; i++) {
-        if (partsA[i] > partsB[i]) return -1; 
+        if (partsA[i] > partsB[i]) return -1;
         if (partsA[i] < partsB[i]) return 1;
       }
       return 0;
@@ -169,10 +173,10 @@ const App: React.FC = () => {
 
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
-  const handleDownloadPDF = () => {
+  const executeDownloadPDF = () => {
     const element = reportRef.current;
     if (!element || isGeneratingPDF) return;
-    
+
     // @ts-ignore
     const h2p = window.html2pdf;
     if (typeof h2p === 'undefined') {
@@ -183,17 +187,17 @@ const App: React.FC = () => {
     setIsGeneratingPDF(true);
     setSuccessMessage('PDF hazırlanıyor, lütfen bekleyin...');
     setError(null);
-    
+
     // Scroll to top to prevent html2canvas offset issues
     window.scrollTo(0, 0);
-    
+
     const opt = {
       margin: 0,
       filename: `Jira_Release_${displayVersion || 'Report'}.pdf`,
       image: { type: 'jpeg', quality: 1 },
-      html2canvas: { 
-        scale: 2, 
-        useCORS: true, 
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
         logging: false,
         scrollX: 0,
         scrollY: 0
@@ -226,22 +230,31 @@ const App: React.FC = () => {
       });
   };
 
-  const handleCopyToEmail = () => {
+  const handleDownloadPDF = () => {
+    if (filterCutoffTimestamp === null && tasks.length > 0) {
+      setPendingAction(() => executeDownloadPDF);
+      setShowFilterWarning(true);
+      return;
+    }
+    executeDownloadPDF();
+  };
+
+  const executeCopyToEmail = (isForced: boolean = false) => {
     if (!reportRef.current) return;
     const today = new Date().toLocaleDateString('tr-TR');
     const borderStyle = 'border: 1px solid black; border-collapse: collapse; padding: 8px 10px; font-family: Calibri, sans-serif; font-size: 11pt; vertical-align: top;';
     const borderStyleNoWrap = borderStyle + ' white-space: nowrap;';
     const headerBlue = 'background-color: #0052cc; color: white; font-weight: bold; vertical-align: middle; text-align: center; border: 1px solid black;';
     const bgGray = 'background-color: #f2f2f2; font-weight: bold; vertical-align: middle; border: 1px solid black;';
-    
+
     const getActiveEpicRowSpan = (taskIndex: number, list: JiraTask[]) => {
-        const currentTask = list[taskIndex];
-        if (taskIndex > 0 && list[taskIndex - 1].epicName === currentTask.epicName) return 0;
-        let span = 1;
-        for (let i = taskIndex + 1; i < list.length; i++) {
-          if (list[i].epicName === currentTask.epicName) span++; else break;
-        }
-        return span;
+      const currentTask = list[taskIndex];
+      if (taskIndex > 0 && list[taskIndex - 1].epicName === currentTask.epicName) return 0;
+      let span = 1;
+      for (let i = taskIndex + 1; i < list.length; i++) {
+        if (list[i].epicName === currentTask.epicName) span++; else break;
+      }
+      return span;
     };
 
     let storyRows = '';
@@ -251,20 +264,20 @@ const App: React.FC = () => {
       const isGrayedOut = filterCutoffTimestamp !== null && parseJiraDate(t.statusCategoryChanged) <= filterCutoffTimestamp;
       const textStyle = isGrayedOut ? 'color: #334155; font-style: italic;' : 'color: #000000;';
       const cellBg = isGrayedOut ? 'background-color: #cbd5e1;' : 'background-color: #ffffff;';
-      let epicCell = rowSpan > 0 ? `<td rowspan="${rowSpan}" style="${borderStyle} vertical-align: middle; ${isGrayedOut ? 'background-color: #cbd5e1; font-style: italic;' : 'background-color: #ffffff;'}">${t.epicName}</td>` : '';
+      let epicCell = rowSpan > 0 ? `<td rowspan="${rowSpan}" style="${borderStyle} vertical-align: middle; ${isGrayedOut ? 'color: #334155; font-style: italic; background-color: #cbd5e1;' : 'color: #000000; background-color: #ffffff;'}">${t.epicName}</td>` : '';
       const displayId = t.backlogId;
-      const idCellContent = displayId !== '-' ? `<a href="https://commencis.atlassian.net/browse/${displayId}" style="color: blue; text-decoration: underline;">${displayId}</a>` : displayId;
+      const idCellContent = displayId !== '-' ? `<a href="https://commencis.atlassian.net/browse/${displayId}" style="color: ${isGrayedOut ? '#334155' : 'blue'}; text-decoration: underline;">${displayId}</a>` : displayId;
       storyRows += `<tr><td style="${borderStyleNoWrap} ${textStyle} ${cellBg}">${idCellContent}</td>${epicCell}<td style="${borderStyle} ${textStyle} ${cellBg}">${t.summary}</td></tr>`;
     }
 
     let bugRows = bugTasks.length > 0 ? bugTasks.map(t => {
       const isGrayedOut = filterCutoffTimestamp !== null && parseJiraDate(t.statusCategoryChanged) <= filterCutoffTimestamp;
-      const defectId = t.externalRcId !== '-' ? t.externalRcId : '-';
-      const idContent = defectId !== '-' ? `<a href="https://commencis.atlassian.net/browse/${defectId}" style="color: blue; text-decoration: underline;">${defectId}</a>` : defectId;
+      const defectId = t.externalRcId !== '-' ? t.externalRcId : t.originalKey;
+      const idContent = defectId !== '-' ? `<a href="https://commencis.atlassian.net/browse/${defectId}" style="color: ${isGrayedOut ? '#334155' : 'blue'}; text-decoration: underline;">${defectId}</a>` : defectId;
       return `<tr><td style="${borderStyleNoWrap} ${isGrayedOut ? 'background-color: #cbd5e1; font-style: italic;' : 'background-color: #ffffff;'}">${idContent}</td><td style="${borderStyle} ${isGrayedOut ? 'background-color: #cbd5e1; font-style: italic;' : 'background-color: #ffffff;'}">${t.summary}</td></tr>`;
     }).join('') : `<tr><td style="${borderStyleNoWrap} height: 20px;">&nbsp;</td><td style="${borderStyle}">&nbsp;</td></tr>`;
 
-    const infoRow = filterCutoffTimestamp !== null ? `<div style="padding: 2px 0;"><table border="0" cellpadding="0" cellspacing="0"><tr><td style="vertical-align: middle; padding-right: 6px;"><table border="1" style="width: 16px; height: 16px; border: 1px solid #ea580c; border-radius: 8px;"><tr><td align="center" style="font-family: Calibri; font-size: 9pt; font-weight: bold; color: #ea580c;">i</td></tr></table></td><td style="font-family: Calibri; font-size: 10.5pt; font-weight: bold; font-style: italic; color: #ea580c;">Aşağıda testi yeni tamamlanan kayıtlar beyaz , önceki paketler ile iletilmiş olanlar gri olarak belirtilmiştir.</td></tr></table></div>` : '';
+    const infoRow = filterCutoffTimestamp !== null ? `<div style="padding: 2px 0;"><table border="0" cellpadding="0" cellspacing="0"><tr><td style="vertical-align: middle; padding-right: 6px;"><table border="0" cellpadding="0" cellspacing="0" width="16" height="16" style="width: 16px; height: 16px; border-collapse: separate;"><tr><td align="center" valign="middle" width="16" height="16" style="width: 16px; height: 16px; min-width: 16px; max-width: 16px; min-height: 16px; max-height: 16px; padding: 0; margin: 0; border: 1.5px solid #ea580c; border-radius: 8px; color: #ea580c; font-family: Calibri, sans-serif; font-size: 10px; font-weight: bold; line-height: 12px;">i</td></tr></table></td><td style="font-family: Calibri, sans-serif; font-size: 10.5pt; font-weight: bold; font-style: italic; color: #ea580c; vertical-align: middle; padding: 0;">Aşağıda testi yeni tamamlanan kayıtlar beyaz , önceki paketler ile iletilmiş olanlar gri olarak belirtilmiştir.</td></tr></table></div>` : '';
 
     const htmlContent = `
       <div style="font-family: Calibri, sans-serif; width: 794px;">
@@ -330,13 +343,30 @@ const App: React.FC = () => {
         </table>
       </div>
     `;
-    
+
     const blob = new Blob([htmlContent], { type: 'text/html' });
     const clipboardItem = new ClipboardItem({ 'text/html': blob });
+
+    window.scrollTo(0, 0);
+
     navigator.clipboard.write([clipboardItem]).then(() => {
-      setSuccessMessage('Tüm kayıtlar ve bölümler kopyalandı!');
+      if (isForced) {
+        setSuccessMessage('Mail için kopyalandı.');
+      } else {
+        setSuccessMessage('Tüm kayıtlar ve bölümler kopyalandı!');
+      }
       setTimeout(() => setSuccessMessage(null), 3000);
     });
+  };
+
+  const handleCopyToEmail = () => {
+    if (filterCutoffTimestamp === null && tasks.length > 0) {
+      // Pass a wrapped function that passes isForced = true
+      setPendingAction(() => () => executeCopyToEmail(true));
+      setShowFilterWarning(true);
+      return;
+    }
+    executeCopyToEmail(false);
   };
 
   const historyViewTasks = useMemo(() => {
@@ -344,7 +374,52 @@ const App: React.FC = () => {
   }, [tasks]);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col relative">
+
+      {showFilterWarning && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900 bg-opacity-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-lg w-full mx-4 animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-bold text-slate-800 mb-3 flex items-center gap-2">
+              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-orange-100 text-orange-600">i</span>
+              Uyarı: Tarih Filtresi Seçilmedi
+            </h3>
+            <p className="text-slate-600 mb-6 leading-relaxed font-medium">
+              Herhangi bir tarih filtresi eklemediniz. Daha önce bu sürüm özelinde bir paket paylaşımı yapıldıysa ilgili tarihi girerek gönderilmiş kayıtların tabloda belirtilmesini sağla.
+            </p>
+            <div className="flex justify-end gap-3 font-semibold">
+              <button
+                onClick={() => {
+                  setShowFilterWarning(false);
+                  if (pendingAction) {
+                    pendingAction();
+                  }
+                  setPendingAction(null);
+                }}
+                className="bg-slate-100 ring-1 ring-slate-300 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg transition"
+              >
+                Yine de İşleme Devam Et
+              </button>
+              <button
+                onClick={() => {
+                  setShowFilterWarning(false);
+                  setPendingAction(null);
+                  // Scroll to history table
+                  const historySection = document.getElementById('history-filter-section');
+                  if (historySection) {
+                    historySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  } else {
+                    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                  }
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition shadow-md"
+              >
+                TAMAM
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 no-print">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -355,8 +430,8 @@ const App: React.FC = () => {
             {status === ReportStatus.LOADED && (
               <>
                 <button onClick={handleReset} className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-4 py-2 rounded-md transition flex items-center gap-2 text-sm font-medium shadow-sm"><RotateCcw className="w-4 h-4" />Yeni Rapor</button>
-                <button 
-                  onClick={handleDownloadPDF} 
+                <button
+                  onClick={handleDownloadPDF}
                   disabled={isGeneratingPDF}
                   className={`bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition flex items-center gap-2 text-sm font-medium shadow-sm ${isGeneratingPDF ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
@@ -377,16 +452,16 @@ const App: React.FC = () => {
             <h2 className="text-2xl font-bold text-slate-800 mb-2">Rapor Oluşturmak İçin Dosya Yükleyin</h2>
             <p className="text-slate-500 max-w-lg mx-auto mb-8">Jira'dan alınan Excel, CSV veya HTML dosyasını yükleyin.</p>
             <div className="flex gap-4 mb-6">
-                <a href="https://commencis.atlassian.net/issues?filter=18441" target="_blank" rel="noreferrer" className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg font-semibold shadow transition flex items-center gap-2 transform hover:scale-105"><Smartphone className="w-5 h-5" />AND Filter</a>
-                <a href="https://commencis.atlassian.net/issues?filter=18442" target="_blank" rel="noreferrer" className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg font-semibold shadow transition flex items-center gap-2 transform hover:scale-105"><MonitorSmartphone className="w-5 h-5" />IOS Filter</a>
+              <a href="https://commencis.atlassian.net/issues?filter=18441" target="_blank" rel="noreferrer" className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg font-semibold shadow transition flex items-center gap-2 transform hover:scale-105"><Smartphone className="w-5 h-5" />AND Filter</a>
+              <a href="https://commencis.atlassian.net/issues?filter=18442" target="_blank" rel="noreferrer" className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg font-semibold shadow transition flex items-center gap-2 transform hover:scale-105"><MonitorSmartphone className="w-5 h-5" />IOS Filter</a>
             </div>
             <label className="cursor-pointer group relative flex flex-col items-center justify-center w-full max-w-xl h-48 border-2 border-slate-300 border-dashed rounded-lg bg-white hover:bg-slate-50 transition-colors shadow-sm">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <UploadCloud className="w-10 h-10 mb-3 text-slate-400 group-hover:text-blue-500 transition-colors" />
-                    <p className="mb-2 text-sm text-slate-500 font-semibold">Dosya seçmek için tıklayın</p>
-                    <p className="text-xs text-slate-400">XLSX, CSV veya HTML</p>
-                </div>
-                <input type="file" accept=".xlsx,.xls,.csv,.html,.htm" onChange={handleFileUpload} className="hidden" />
+              <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                <UploadCloud className="w-10 h-10 mb-3 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                <p className="mb-2 text-sm text-slate-500 font-semibold">Dosya seçmek için tıklayın</p>
+                <p className="text-xs text-slate-400">XLSX, CSV veya HTML</p>
+              </div>
+              <input type="file" accept=".xlsx,.xls,.csv,.html,.htm" onChange={handleFileUpload} className="hidden" />
             </label>
             {status === ReportStatus.ERROR && error && (
               <div className="mt-6 bg-red-50 p-4 rounded-lg border border-red-200 text-red-800 font-medium">
@@ -399,7 +474,7 @@ const App: React.FC = () => {
         {status === ReportStatus.LOADED && (
           <div className="space-y-8 pb-20">
             {successMessage && <div className="bg-green-50 p-4 rounded-lg border border-green-200 text-green-800 font-medium no-print max-w-[794px] mx-auto">{successMessage}</div>}
-            
+
             {/* UI Shadow Wrapper - Not included in PDF */}
             <div className="mx-auto shadow-2xl no-print rounded-sm overflow-hidden" style={{ width: '794px' }}>
               <div className="bg-white" id="pdf-root" ref={reportRef}>
@@ -426,7 +501,7 @@ const App: React.FC = () => {
                     </table>
                   </div>
                 )}
-                
+
                 <table style={{ marginTop: '5px' }}>
                   <colgroup><col style={{ width: '18%' }} /><col style={{ width: '22%' }} /><col style={{ width: '60%' }} /></colgroup>
                   <thead><tr><td colSpan={3} className="header-blue text-center">Talepler</td></tr><tr className="bg-gray"><td className="font-bold">Backlog ID</td><td className="font-bold">Epic Name</td><td className="font-bold">Açıklama</td></tr></thead>
@@ -435,12 +510,12 @@ const App: React.FC = () => {
                       const rowSpan = getEpicRowSpan(idx);
                       const isGrayedOut = filterCutoffTimestamp !== null && parseJiraDate(task.statusCategoryChanged) <= filterCutoffTimestamp;
                       return (
-                        <tr key={idx} className={isGrayedOut ? "bg-slate-300" : ""}>
-                          <td style={{ fontStyle: isGrayedOut ? 'italic' : 'normal', whiteSpace: 'nowrap' }}>
-                            {task.backlogId !== '-' ? <a href={`https://commencis.atlassian.net/browse/${task.backlogId}`} target="_blank" rel="noreferrer" style={{ color: 'blue', textDecoration: 'underline' }}>{task.backlogId}</a> : task.backlogId}
+                        <tr key={idx}>
+                          <td className={isGrayedOut ? "bg-slate-300" : "bg-white"} style={{ fontStyle: isGrayedOut ? 'italic' : 'normal', color: isGrayedOut ? '#334155' : 'inherit', whiteSpace: 'nowrap' }}>
+                            {task.backlogId !== '-' ? <a href={`https://commencis.atlassian.net/browse/${task.backlogId}`} target="_blank" rel="noreferrer" style={{ color: isGrayedOut ? '#334155' : 'blue', textDecoration: 'underline' }}>{task.backlogId}</a> : task.backlogId}
                           </td>
-                          {rowSpan > 0 && <td rowSpan={rowSpan} className={isGrayedOut ? "bg-slate-300" : "bg-white"} style={{ verticalAlign: 'middle', fontStyle: isGrayedOut ? 'italic' : 'normal' }}>{task.epicName}</td>}
-                          <td style={{ fontStyle: isGrayedOut ? 'italic' : 'normal' }}>{task.summary}</td>
+                          {rowSpan > 0 && <td rowSpan={rowSpan} className={isGrayedOut ? "bg-slate-300" : "bg-white"} style={{ verticalAlign: 'middle', fontStyle: isGrayedOut ? 'italic' : 'normal', color: isGrayedOut ? '#334155' : 'inherit' }}>{task.epicName}</td>}
+                          <td className={isGrayedOut ? "bg-slate-300" : "bg-white"} style={{ fontStyle: isGrayedOut ? 'italic' : 'normal', color: isGrayedOut ? '#334155' : 'inherit' }}>{task.summary}</td>
                         </tr>
                       );
                     })}
@@ -453,13 +528,13 @@ const App: React.FC = () => {
                   <tbody>
                     {bugTasks.length > 0 ? bugTasks.map((task, idx) => {
                       const isGrayedOut = filterCutoffTimestamp !== null && parseJiraDate(task.statusCategoryChanged) <= filterCutoffTimestamp;
-                      const defectId = task.externalRcId !== '-' ? task.externalRcId : '-';
+                      const defectId = task.externalRcId !== '-' ? task.externalRcId : task.originalKey;
                       return (
-                        <tr key={idx} className={isGrayedOut ? "bg-slate-300" : ""}>
-                          <td style={{ fontStyle: isGrayedOut ? 'italic' : 'normal', whiteSpace: 'nowrap' }}>
-                            {defectId !== '-' ? <a href={`https://commencis.atlassian.net/browse/${defectId}`} target="_blank" rel="noreferrer" style={{ color: 'blue', textDecoration: 'underline' }}>{defectId}</a> : defectId}
+                        <tr key={idx}>
+                          <td className={isGrayedOut ? "bg-slate-300" : "bg-white"} style={{ fontStyle: isGrayedOut ? 'italic' : 'normal', color: isGrayedOut ? '#334155' : 'inherit', whiteSpace: 'nowrap' }}>
+                            {defectId !== '-' ? <a href={`https://commencis.atlassian.net/browse/${defectId}`} target="_blank" rel="noreferrer" style={{ color: isGrayedOut ? '#334155' : 'blue', textDecoration: 'underline' }}>{defectId}</a> : defectId}
                           </td>
-                          <td style={{ fontStyle: isGrayedOut ? 'italic' : 'normal' }}>{task.summary}</td>
+                          <td className={isGrayedOut ? "bg-slate-300" : "bg-white"} style={{ fontStyle: isGrayedOut ? 'italic' : 'normal', color: isGrayedOut ? '#334155' : 'inherit' }}>{task.summary}</td>
                         </tr>
                       );
                     }) : <tr style={{ height: '40px' }}><td>&nbsp;</td><td>&nbsp;</td></tr>}
@@ -482,7 +557,7 @@ const App: React.FC = () => {
                   <tbody>
                     <tr>
                       <td colSpan={3}>
-                        Dokümanda iletilen geliştirmeleri test edebileceğiniz {detectedPlatform} paketini aşağıdaki link üzerinden indirebilirsiniz.<br/><br/>
+                        Dokümanda iletilen geliştirmeleri test edebileceğiniz {detectedPlatform} paketini aşağıdaki link üzerinden indirebilirsiniz.<br /><br />
                         <strong>{detectedPlatform} Platform Paket Bilgileri:</strong>
                       </td>
                     </tr>
@@ -502,12 +577,12 @@ const App: React.FC = () => {
             </div>
 
             {historyViewTasks.length > 0 && (
-              <div className="bg-white p-6 rounded-lg border border-slate-300 no-print">
+              <div id="history-filter-section" className="bg-white p-6 rounded-lg border border-slate-300 no-print mt-8">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-bold text-slate-700 flex items-center gap-2"><History className="w-5 h-5" /> Tarih Bazlı Filtrele</h3>
                   {filterCutoffTimestamp !== null && <button onClick={() => setFilterCutoffTimestamp(null)} className="text-sm text-red-600 hover:text-red-800 underline font-medium transition-colors">Filtreyi Kaldır</button>}
                 </div>
-                
+
                 <div className="flex items-start gap-2 mb-4">
                   <div className="flex-shrink-0 w-4 h-4 rounded-full border-[1.5px] border-orange-600 flex items-center justify-center mt-[2px]"><span className="text-[10px] font-bold text-orange-600 leading-none">i</span></div>
                   <p className="text-orange-600 font-bold italic text-[12.5px] leading-tight">En son yapılan Paket paylaşım tarih saatine göre bu listeden seçim yapılarak gönderilmiş kayıtlar pasif duruma getilir.</p>
@@ -518,7 +593,9 @@ const App: React.FC = () => {
                     <thead><tr className="bg-slate-100"><th className="p-2 border text-left">ID</th><th className="p-2 border text-left">Summary</th><th className="p-2 border text-left">Tarih</th></tr></thead>
                     <tbody>
                       {historyViewTasks.map((t, idx) => {
-                        const displayId = (t.issueType.toLowerCase() === 'bug' && t.externalRcId !== '-') ? t.externalRcId : t.backlogId;
+                        const displayId = t.issueType.toLowerCase() === 'bug'
+                          ? (t.externalRcId !== '-' ? t.externalRcId : t.originalKey)
+                          : (t.backlogId !== '-' ? t.backlogId : t.originalKey);
                         const isCurrentFilter = filterCutoffTimestamp === parseJiraDate(t.statusCategoryChanged);
                         return (
                           <tr key={idx} className={`hover:bg-slate-50 cursor-pointer ${isCurrentFilter ? 'bg-blue-50' : ''}`} onClick={() => handleDateClick(t.statusCategoryChanged)}>

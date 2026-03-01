@@ -14,20 +14,15 @@ export const parseJiraHtml = async (file: File): Promise<JiraTask[]> => {
 
   // Extract headers to identify column indexes
   const headers = Array.from(table.querySelectorAll('thead tr th, tr:first-child th, tr:first-child td.searcherHeader'));
-  
+
   const statusCategoryChangedIndex = headers.findIndex(h => {
     const txt = h.textContent?.toLowerCase().trim() || '';
-    return txt.includes('status category changed') || 
-           txt.includes('category changed') || 
-           txt.includes('statü değişim tarihi');
+    return txt.includes('status category changed') ||
+      txt.includes('category changed') ||
+      txt.includes('statü değişim tarihi');
   });
 
-  const linkedIssuesIndex = headers.findIndex(h => {
-    const txt = h.textContent?.toLowerCase().trim() || '';
-    return txt.includes('linked issues') || 
-           txt.includes('bağlı kayıtlar') ||
-           txt.includes('linked');
-  });
+
 
   const issueTypeIndex = headers.findIndex(h => {
     const txt = h.textContent?.toLowerCase().trim() || '';
@@ -54,8 +49,8 @@ export const parseJiraHtml = async (file: File): Promise<JiraTask[]> => {
     };
 
     const getByIndex = (idx: number): string => {
-        if (idx === -1) return '';
-        return cells[idx]?.textContent?.trim() || '';
+      if (idx === -1) return '';
+      return cells[idx]?.textContent?.trim() || '';
     };
 
     // 1. Original Key (e.g. ISCEPANDROID-1234)
@@ -64,7 +59,7 @@ export const parseJiraHtml = async (file: File): Promise<JiraTask[]> => {
     // Issue Type
     let issueType = getText('issuetype');
     if (!issueType && issueTypeIndex !== -1) {
-        issueType = getByIndex(issueTypeIndex);
+      issueType = getByIndex(issueTypeIndex);
     }
     // Fallback if extracting failed but row has typical bug markers? No, default to Story to be safe or keep empty.
     if (!issueType) issueType = 'Story';
@@ -72,24 +67,31 @@ export const parseJiraHtml = async (file: File): Promise<JiraTask[]> => {
     // 2. Backlog ID Logic (Prioritize CCRSP key)
     let backlogId = '-';
     let externalRcId = '-';
-    let linkedText = '';
 
-    // Check specific "Linked Issues" column first
-    if (linkedIssuesIndex !== -1) {
-        linkedText = getByIndex(linkedIssuesIndex);
-    } else {
-        // Fallback: search whole row text for linked issue pattern if column not found
-        linkedText = row.textContent || '';
-    }
+    // Search the ENTIRE row text to reliably capture linked issues 
+    // regardless of the exact Jira column name they exported
+    const allRowText = row.textContent || '';
 
-    const ccrspMatch = linkedText.match(/(CCRSP-\d+)/);
+    const ccrspMatch = allRowText.match(/CCRSP[\s-]*\d+/i);
     if (ccrspMatch) {
-        backlogId = ccrspMatch[0];
+      let m = ccrspMatch[0].replace(/\s+/g, '').toUpperCase();
+      if (!m.includes('-')) m = m.replace('CCRSP', 'CCRSP-');
+      backlogId = m;
     }
 
-    const extRcMatch = linkedText.match(/(ISCEPEXTRC-\d+|ISCOREXT-\d+)/);
+    const extRcMatch = allRowText.match(/(ISCEPEXTRC|ISCOREXT)[\s-]*\d+/i);
     if (extRcMatch) {
-        externalRcId = extRcMatch[0];
+      let m = extRcMatch[0].replace(/\s+/g, '').toUpperCase();
+      if (!m.includes('-')) m = m.replace('ISCEPEXTRC', 'ISCEPEXTRC-').replace('ISCOREXT', 'ISCOREXT-');
+      externalRcId = m;
+    }
+
+    if (issueType.toLowerCase() === 'story') {
+      if (externalRcId !== '-') {
+        issueType = 'Bug';
+      } else if (allRowText.toLowerCase().includes('accessibilitybug') || allRowText.toLowerCase().match(/\bbug\b/i)) {
+        issueType = 'Bug';
+      }
     }
 
     // 3. Summary
@@ -110,9 +112,9 @@ export const parseJiraHtml = async (file: File): Promise<JiraTask[]> => {
     // 8. Status Category Changed
     let statusCategoryChanged = '';
     if (statusCategoryChangedIndex !== -1) {
-        statusCategoryChanged = getByIndex(statusCategoryChangedIndex);
+      statusCategoryChanged = getByIndex(statusCategoryChangedIndex);
     } else {
-        statusCategoryChanged = getText('updated') || '';
+      statusCategoryChanged = getText('updated') || '';
     }
 
     return {
