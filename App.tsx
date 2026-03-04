@@ -125,8 +125,14 @@ const App: React.FC = () => {
   }, [tasks, filterCutoffTimestamp]);
 
   const storyTasks = useMemo(() => {
-    // Sadece CCRSP'si olan talepler işleme alınsın (ana kural)
-    return filteredTasks.filter(t => t.issueType.toLowerCase() !== 'bug' && t.backlogId !== '-');
+    return filteredTasks.filter(t => {
+      const isBug = t.issueType.toLowerCase() === 'bug';
+      if (isBug) return false;
+
+      const isTask = t.issueType.toLowerCase().includes('task');
+      // Sadece CCRSP'si olan talepler veya Task tipleri işleme alınsın
+      return t.backlogId !== '-' || isTask;
+    });
   }, [filteredTasks]);
 
   const bugTasks = useMemo(() => {
