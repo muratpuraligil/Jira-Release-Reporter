@@ -334,12 +334,10 @@ const App: React.FC = () => {
             <td colspan="2" style="${borderStyle} ${headerBlue}">Paket Detayları</td>
           </tr>
           <tr><td colspan="3" style="${borderStyle}">Dokümanda iletilen geliştirmeleri test edebileceğiniz ${detectedPlatform} paketini aşağıdaki link üzerinden indirebilirsiniz.<br/><br/><strong>${detectedPlatform} Platform Paket Bilgileri:</strong></td></tr>
-          <tr>
-            <td width="142" style="${borderStyle} color: blue; text-decoration: underline; width: 18%;">Paket URL</td>
-            <td width="174" style="${borderStyle} width: 22%;">Created</td>
-            <td width="476" style="${borderStyle} width: 60%;">Revision</td>
+          <tr style="${bgGray}">
+            <td colspan="3" style="${borderStyle} color: blue; text-decoration: underline;">Paket URL</td>
           </tr>
-          <tr><td style="${borderStyle} height: 30px;">&nbsp;</td><td style="${borderStyle}">&nbsp;</td><td style="${borderStyle}">&nbsp;</td></tr>
+          <tr><td colspan="3" style="${borderStyle} height: 30px;">&nbsp;</td></tr>
         </table>
       </div>
     `;
@@ -558,14 +556,10 @@ const App: React.FC = () => {
                       </td>
                     </tr>
                     <tr className="bg-gray">
-                      <td style={{ color: 'blue', textDecoration: 'underline' }}>Paket URL</td>
-                      <td>Created</td>
-                      <td>Revision</td>
+                      <td colSpan={3} style={{ color: 'blue', textDecoration: 'underline', fontWeight: 'bold' }}>Paket URL</td>
                     </tr>
                     <tr>
-                      <td style={{ height: '30px' }}>&nbsp;</td>
-                      <td>&nbsp;</td>
-                      <td>&nbsp;</td>
+                      <td colSpan={3} style={{ height: '30px' }}>&nbsp;</td>
                     </tr>
                   </tbody>
                 </table>
