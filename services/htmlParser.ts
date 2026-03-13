@@ -86,10 +86,14 @@ export const parseJiraHtml = async (file: File): Promise<JiraTask[]> => {
       externalRcId = m;
     }
 
-    if (issueType.toLowerCase() === 'story') {
+    if (issueType.toLowerCase() !== 'bug') {
       if (externalRcId !== '-') {
         issueType = 'Bug';
-      } else if (allRowText.toLowerCase().includes('accessibilitybug') || allRowText.toLowerCase().match(/\bbug\b/i)) {
+      } else if (
+        allRowText.toLowerCase().includes('accessibilitybug') ||
+        allRowText.toLowerCase().match(/\bbug\b/i) ||
+        allRowText.toLowerCase().includes('external')
+      ) {
         issueType = 'Bug';
       }
     }

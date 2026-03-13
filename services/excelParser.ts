@@ -52,10 +52,14 @@ export const parseJiraExcel = async (file: File): Promise<JiraTask[]> => {
           }
 
           let parsedIssueType = issueType;
-          if (parsedIssueType.toLowerCase() === 'story') {
+          if (parsedIssueType.toLowerCase() !== 'bug') {
             if (externalRcId !== '-') {
               parsedIssueType = 'Bug';
-            } else if (allRowValues.toLowerCase().includes('accessibilitybug') || allRowValues.toLowerCase().match(/\bbug\b/i)) {
+            } else if (
+              allRowValues.toLowerCase().includes('accessibilitybug') ||
+              allRowValues.toLowerCase().match(/\bbug\b/i) ||
+              allRowValues.toLowerCase().includes('external')
+            ) {
               parsedIssueType = 'Bug';
             }
           }

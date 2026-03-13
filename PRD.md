@@ -17,8 +17,8 @@ Aşağıdaki fonksiyonel gereksinimler hâlihazırda uygulamada çalışır duru
 - **Çoklu Format Desteği:** Jira'dan alınan hem `HTML` hem de `Excel (.xls, .xlsx)` dosyalarını kabul edip okuyabilir.
 - **Kategori Ayrımı:**
   - **Talepler (Story/Task/Sub-task):** "Bug" sınıfında olmayan ve "CCRSP" ID'sine sahip kayıtlarla birlikte, Task ve Sub-task türleri (CCRSP numarası olmasa dahi tire `-` atanarak) "Talepler" tablosuna aktarılır.
-  - **Tamamlanan Kayıtlar (Bugs):** Issue Type "Bug" olanlar veya dış sistem (Örn: ISCEPEXTRC) bağlantısı bulunup metninde bug barındıranlar otomatik olarak süzülüp hata çözümleri listesinde yer alır.
-- **Akıllı Backlog ve Defect ID Taraması:** Karmaşık metin hücreleri arasından Regex ile doğru "CCRSP" veya "ISCEPEXTRC / ISCOREXT" referansları tespit edilip ilgili tıklanabilir Jira linklerine dönüştürülür.
+  - **Tamamlanan Kayıtlar (Bugs):** Issue Type "Bug" olanlar veya etiket/açıklama metninde `"external"` veya `"accessibilitybug"` barındıran veya dış sistem (Örn: ISCEPEXTRC) bağlantısı bulunan kayıtlar otomatik olarak süzülüp hata çözümleri listesinde yer alır.
+- **Akıllı Backlog ve Defect ID Taraması:** Karmaşık metin hücreleri arasından Regex ile doğru "CCRSP" veya "ISCEPEXTRC / ISCOREXT" referansları tespit edilir. Tüm tablolarda (Talepler, Hatalar, Tarihçeler) gösterim için öncelik "CCRSP" numarasına aittir. Eğer "CCRSP" yoksa, varsa "ISCEPEXTRC" veya "ISCOREXT" gösterilir. Bunların hiçbiri yoksa orijinal anahtar (örn: ISCEPANDROID, ISCEPIPHONE vb.) gösterilmez, tabloya direkt "-" (tire) atanır.
 - **Epic Birleştirme:** Aynı "Epic Name" altındaki bağıntılı talepler, tabloda `rowSpan` yapılarak tekil ve temiz bir biçimde birleştirilir.
 - **Platform Tespit Sistemi:** Orijinal bilet kodlarındaki (örn: ISCEPANDROID, ISCEPIPHONE) ifadelere bakılarak dokümanın sol alanına ve paket tablosuna projenin ortamı (iOS / Android) otomatik yazılır.
 
@@ -37,4 +37,4 @@ Aşağıdaki fonksiyonel gereksinimler hâlihazırda uygulamada çalışır duru
 ---
 *(Kural: Bu doküman, uygulamada yapılan her teknik, fonksiyonel ve süreç bazlı değişiklikte [örn. prod güncellemeleri] tıpkı versiyon dosyası gibi otomatik olarak güncellenecektir.)*
 <br/>
-**Son Güncelleme:** v2.3.0 - 04.03.2026
+**Son Güncelleme:** v2.3.2 - 13.03.2026
