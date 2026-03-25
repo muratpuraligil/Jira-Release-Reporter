@@ -29,6 +29,11 @@ export const parseJiraHtml = async (file: File): Promise<JiraTask[]> => {
     return txt.includes('issue type') || txt.includes('sorun tipi');
   });
 
+  const releaseNotesIndex = headers.findIndex(h => {
+    const txt = h.textContent?.toLowerCase().trim() || '';
+    return txt.includes('release') || txt.includes('sürüm not');
+  });
+
   // Extract rows, excluding those that are likely headers or empty
   let rows = Array.from(table.querySelectorAll('tbody tr, tr')).filter(r => {
     // A data row must have cells (td) and not be a header row
@@ -131,7 +136,8 @@ export const parseJiraHtml = async (file: File): Promise<JiraTask[]> => {
       originalKey,
       statusCategoryChanged,
       issueType,
-      externalRcId
+      externalRcId,
+      releaseNotes: getText('customfield_10082') || (releaseNotesIndex !== -1 ? getByIndex(releaseNotesIndex) : '')
     };
   });
 

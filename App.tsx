@@ -178,6 +178,48 @@ const App: React.FC = () => {
   };
 
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [editableVersion, setEditableVersion] = useState('');
+  const [editablePackageUrl, setEditablePackageUrl] = useState("Paket linkini ekle ve paketi BETA'lamayı (Softtech & İşBankası grup yetkisi) unutma.");
+  const [editedBugSummaries, setEditedBugSummaries] = useState<Record<number, string>>({});
+  const notesRef = useRef<HTMLDivElement>(null);
+  const bilgiRef = useRef<HTMLDivElement>(null);
+
+  // Release Notes olan task'lardan Belirtilmesi Gerekenler'i otomatik doldur (bold summary)
+  React.useEffect(() => {
+    if (!notesRef.current) return;
+    const approvedTasks = tasks.filter(t =>
+      t.status.toLowerCase().includes('approved') ||
+      t.status.toLowerCase().includes('onay') ||
+      t.status.toLowerCase().includes('test passed')
+    );
+    const items = approvedTasks
+      .filter(t => t.releaseNotes && t.releaseNotes.trim() !== '' && t.releaseNotes.toLowerCase() !== 'none')
+      .map(t => {
+        const cleanedNote = t.releaseNotes
+          .split('\n')
+          .filter(line => !line.trim().startsWith('#'))
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        return cleanedNote ? { summary: t.summary, note: cleanedNote } : null;
+      })
+      .filter((x): x is { summary: string; note: string } => x !== null);
+
+    if (items.length > 0) {
+      notesRef.current.innerHTML = items
+        .map(item => `<div><strong>${item.summary}</strong> : ${item.note}</div>`)
+        .join('');
+    } else {
+      notesRef.current.innerHTML = '<div><br></div>';
+    }
+  }, [tasks]);
+
+  // displayVersion hazır olduğunda editableVersion'ı başlat
+  React.useEffect(() => {
+    if (displayVersion && displayVersion !== '-') {
+      setEditableVersion(displayVersion);
+    }
+  }, [displayVersion]);
 
   const executeDownloadPDF = () => {
     const element = reportRef.current;
@@ -253,6 +295,21 @@ const App: React.FC = () => {
     const headerBlue = 'background-color: #0052cc; color: white; font-weight: bold; vertical-align: middle; text-align: center; border: 1px solid black;';
     const bgGray = 'background-color: #f2f2f2; font-weight: bold; vertical-align: middle; border: 1px solid black;';
 
+    // Ref'lerden mail HTML'i oku
+    const getRefAsListHtml = (ref: React.RefObject<HTMLDivElement>): string => {
+      if (!ref.current) return '<ul><li>&nbsp;</li></ul>';
+      const raw = ref.current.innerHTML.trim();
+      if (!raw || raw === '<div><br></div>') return '<ul><li>&nbsp;</li></ul>';
+      // div taglerini ayır ve başındaki bullet/tire karakterlerini temizle
+      const items = raw.split(/<\/?div>/)
+        .filter(s => s.trim() && !/^<br\s*\/?>$/.test(s.trim()))
+        .map(s => s.trim().replace(/^[\u2022\-*]\s*/, ''));
+      if (items.length === 0) return '<ul><li>&nbsp;</li></ul>';
+      return `<ul style="margin:0;padding-left:20px">${items.map(i => `<li>${i}</li>`).join('')}</ul>`;
+    };
+    const notesMailHtml = getRefAsListHtml(notesRef as React.RefObject<HTMLDivElement>);
+    const bilgiMailHtml = getRefAsListHtml(bilgiRef as React.RefObject<HTMLDivElement>);
+
     const getActiveEpicRowSpan = (taskIndex: number, list: JiraTask[]) => {
       const currentTask = list[taskIndex];
       if (taskIndex > 0 && list[taskIndex - 1].epicName === currentTask.epicName) return 0;
@@ -276,11 +333,12 @@ const App: React.FC = () => {
       storyRows += `<tr><td style="${borderStyleNoWrap} ${textStyle} ${cellBg}">${idCellContent}</td>${epicCell}<td style="${borderStyle} ${textStyle} ${cellBg}">${t.summary}</td></tr>`;
     }
 
-    let bugRows = bugTasks.length > 0 ? bugTasks.map(t => {
+    let bugRows = bugTasks.length > 0 ? bugTasks.map((t, idx) => {
       const isGrayedOut = filterCutoffTimestamp !== null && parseJiraDate(t.statusCategoryChanged) <= filterCutoffTimestamp;
       const defectId = t.backlogId !== '-' ? t.backlogId : (t.externalRcId !== '-' ? t.externalRcId : '-');
       const idContent = defectId !== '-' ? `<a href="https://commencis.atlassian.net/browse/${defectId}" style="color: ${isGrayedOut ? '#334155' : 'blue'}; text-decoration: underline;">${defectId}</a>` : defectId;
-      return `<tr><td style="${borderStyleNoWrap} ${isGrayedOut ? 'background-color: #cbd5e1; font-style: italic;' : 'background-color: #ffffff;'}">${idContent}</td><td style="${borderStyle} ${isGrayedOut ? 'background-color: #cbd5e1; font-style: italic;' : 'background-color: #ffffff;'}">${t.summary}</td></tr>`;
+      const summary = editedBugSummaries[idx] ?? t.summary;
+      return `<tr><td style="${borderStyleNoWrap} ${isGrayedOut ? 'background-color: #cbd5e1; font-style: italic;' : 'background-color: #ffffff;'}">${idContent}</td><td style="${borderStyle} ${isGrayedOut ? 'background-color: #cbd5e1; font-style: italic;' : 'background-color: #ffffff;'}">${summary}</td></tr>`;
     }).join('') : `<tr><td style="${borderStyleNoWrap} height: 20px;">&nbsp;</td><td style="${borderStyle}">&nbsp;</td></tr>`;
 
     const infoRow = filterCutoffTimestamp !== null ? `<div style="padding: 2px 0;"><table border="0" cellpadding="0" cellspacing="0"><tr><td style="vertical-align: middle; padding-right: 6px;"><table border="0" cellpadding="0" cellspacing="0" width="16" height="16" style="width: 16px; height: 16px; border-collapse: separate;"><tr><td align="center" valign="middle" width="16" height="16" style="width: 16px; height: 16px; min-width: 16px; max-width: 16px; min-height: 16px; max-height: 16px; padding: 0; margin: 0; border: 1.5px solid #ea580c; border-radius: 8px; color: #ea580c; font-family: Calibri, sans-serif; font-size: 10px; font-weight: bold; line-height: 12px;">i</td></tr></table></td><td style="font-family: Calibri, sans-serif; font-size: 10.5pt; font-weight: bold; font-style: italic; color: #ea580c; vertical-align: middle; padding: 0;">Aşağıda testi yeni tamamlanan kayıtlar beyaz , önceki paketler ile iletilmiş olanlar gri olarak belirtilmiştir.</td></tr></table></div>` : '';
@@ -298,7 +356,7 @@ const App: React.FC = () => {
             <td width="476" style="${borderStyle} width: 60%;">${today}</td>
           </tr>
           <tr><td style="${borderStyle}">&nbsp;</td><td style="${borderStyle} ${bgGray}">Proje Bilgisi:</td><td style="${borderStyle}">İşCep Projesi</td></tr>
-          <tr><td style="${borderStyle}">&nbsp;</td><td style="${borderStyle} ${bgGray}">Sürüm Bilgisi:</td><td style="${borderStyle}">${displayVersion}</td></tr>
+          <tr><td style="${borderStyle}">&nbsp;</td><td style="${borderStyle} ${bgGray}">Sürüm Bilgisi:</td><td style="${borderStyle}">${editableVersion || displayVersion}</td></tr>
           <tr><td style="${borderStyle}">&nbsp;</td><td style="${borderStyle} ${bgGray}">Platform:</td><td style="${borderStyle}">${detectedPlatform}</td></tr>
         </table>
         
@@ -329,9 +387,9 @@ const App: React.FC = () => {
             <td colspan="2" style="${borderStyle} ${headerBlue}">Sürüm Detayları</td>
           </tr>
           <tr><td colspan="3" style="${borderStyle} ${bgGray}">1. Belirtilmesi Gerekenler</td></tr>
-          <tr><td colspan="3" style="${borderStyle} height: 50px;"><ul><li>&nbsp;</li></ul></td></tr>
+          <tr><td colspan="3" style="${borderStyle} min-height: 50px; vertical-align: top;">${notesMailHtml}</td></tr>
           <tr><td colspan="3" style="${borderStyle} ${bgGray}">2. Bilinen Durumlar:</td></tr>
-          <tr><td colspan="3" style="${borderStyle} height: 50px;"><ul><li>&nbsp;</li></ul></td></tr>
+          <tr><td colspan="3" style="${borderStyle} height: 50px;">${bilgiMailHtml}</td></tr>
         </table>
 
         <table width="794" style="width: 794px; border-collapse: collapse; border: 1px solid black; margin-top: 10px;">
@@ -343,7 +401,7 @@ const App: React.FC = () => {
           <tr style="${bgGray}">
             <td colspan="3" style="${borderStyle} color: blue; text-decoration: underline;">Paket URL</td>
           </tr>
-          <tr><td colspan="3" style="${borderStyle} height: 30px;">&nbsp;</td></tr>
+          <tr><td colspan="3" style="${borderStyle} height: 30px;">${editablePackageUrl || '&nbsp;'}</td></tr>
         </table>
       </div>
     `;
@@ -482,9 +540,38 @@ const App: React.FC = () => {
                   <colgroup><col style={{ width: '18%' }} /><col style={{ width: '22%' }} /><col style={{ width: '60%' }} /></colgroup>
                   <tbody>
                     <tr><td className="header-blue">KISIM A</td><td colSpan={2} className="header-blue">Sürüm Bilgileri</td></tr>
-                    <tr><td className="bg-gray">1 – Proje Bilgileri</td><td className="bg-gray">Tarih:</td><td className="text-left">{new Date().toLocaleDateString('tr-TR')}</td></tr>
+                    <tr>
+                      <td className="bg-gray">1 – Proje Bilgileri</td>
+                      <td className="bg-gray">Tarih:</td>
+                      <td className="text-left">{new Date().toLocaleDateString('tr-TR')}</td>
+                    </tr>
                     <tr><td>&nbsp;</td><td className="bg-gray">Proje Bilgisi:</td><td>İşCep Projesi</td></tr>
-                    <tr><td>&nbsp;</td><td className="bg-gray">Sürüm Bilgisi:</td><td>{displayVersion}</td></tr>
+                    <tr>
+                      <td>&nbsp;</td>
+                      <td className="bg-gray">Sürüm Bilgisi:</td>
+                      <td style={{ padding: 0 }}>
+                        <input
+                          type="text"
+                          value={editableVersion}
+                          onChange={e => setEditableVersion(e.target.value)}
+                          title="Sürüm bilgisini düzenlemek için tıklayın"
+                          style={{
+                            width: '100%',
+                            border: 'none',
+                            outline: 'none',
+                            background: 'transparent',
+                            fontFamily: 'inherit',
+                            fontSize: 'inherit',
+                            color: 'inherit',
+                            padding: '4px 8px',
+                            cursor: 'text',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={e => (e.currentTarget.style.boxShadow = 'inset 0 -2px 0 0 #2563eb')}
+                          onBlur={e => (e.currentTarget.style.boxShadow = 'none')}
+                        />
+                      </td>
+                    </tr>
                     <tr><td>&nbsp;</td><td className="bg-gray">Platform:</td><td>{detectedPlatform}</td></tr>
                   </tbody>
                 </table>
@@ -535,7 +622,31 @@ const App: React.FC = () => {
                           <td className={isGrayedOut ? "bg-slate-300" : "bg-white"} style={{ fontStyle: isGrayedOut ? 'italic' : 'normal', color: isGrayedOut ? '#334155' : 'inherit', whiteSpace: 'nowrap' }}>
                             {defectId !== '-' ? <a href={`https://commencis.atlassian.net/browse/${defectId}`} target="_blank" rel="noreferrer" style={{ color: isGrayedOut ? '#334155' : 'blue', textDecoration: 'underline' }}>{defectId}</a> : defectId}
                           </td>
-                          <td className={isGrayedOut ? "bg-slate-300" : "bg-white"} style={{ fontStyle: isGrayedOut ? 'italic' : 'normal', color: isGrayedOut ? '#334155' : 'inherit' }}>{task.summary}</td>
+                          <td
+                            className={isGrayedOut ? "bg-slate-300" : "bg-white"}
+                            style={{ fontStyle: isGrayedOut ? 'italic' : 'normal', color: isGrayedOut ? '#334155' : 'inherit', padding: 0 }}
+                          >
+                            <input
+                              type="text"
+                              value={editedBugSummaries[idx] ?? task.summary}
+                              onChange={e => setEditedBugSummaries(prev => ({ ...prev, [idx]: e.target.value }))}
+                              style={{
+                                width: '100%',
+                                border: 'none',
+                                outline: 'none',
+                                background: 'transparent',
+                                fontFamily: 'inherit',
+                                fontSize: 'inherit',
+                                color: 'inherit',
+                                fontStyle: 'inherit',
+                                padding: '4px 8px',
+                                cursor: 'text',
+                                boxSizing: 'border-box',
+                              }}
+                              onFocus={e => (e.currentTarget.style.boxShadow = 'inset 0 -2px 0 0 #2563eb')}
+                              onBlur={e => (e.currentTarget.style.boxShadow = 'none')}
+                            />
+                          </td>
                         </tr>
                       );
                     }) : <tr style={{ height: '40px' }}><td>&nbsp;</td><td>&nbsp;</td></tr>}
@@ -546,9 +657,47 @@ const App: React.FC = () => {
                   <thead><tr><td className="header-blue">KISIM B</td><td colSpan={2} className="header-blue">Sürüm Detayları</td></tr></thead>
                   <tbody>
                     <tr><td colSpan={3} className="bg-gray">1. Belirtilmesi Gerekenler</td></tr>
-                    <tr><td colSpan={3} style={{ height: '50px', verticalAlign: 'top' }}><ul style={{ listStyleType: 'disc', paddingLeft: '20px', margin: 0 }}><li>&nbsp;</li></ul></td></tr>
+                    <tr>
+                      <td colSpan={3} style={{ padding: '8px', verticalAlign: 'top', minHeight: '60px' }}>
+                        <div
+                          ref={notesRef}
+                          contentEditable
+                          suppressContentEditableWarning
+                          title="Düzenlemek için tıklayın"
+                          style={{
+                            minHeight: '50px',
+                            outline: 'none',
+                            cursor: 'text',
+                            lineHeight: '1.8',
+                            fontFamily: 'inherit',
+                            fontSize: 'inherit',
+                          }}
+                          onFocus={e => (e.currentTarget.style.boxShadow = 'inset 0 -2px 0 0 #2563eb')}
+                          onBlur={e => (e.currentTarget.style.boxShadow = 'none')}
+                        />
+                      </td>
+                    </tr>
                     <tr><td colSpan={3} className="bg-gray">2. Bilinen Durumlar:</td></tr>
-                    <tr><td colSpan={3} style={{ height: '50px', verticalAlign: 'top' }}><ul style={{ listStyleType: 'disc', paddingLeft: '20px', margin: 0 }}><li>&nbsp;</li></ul></td></tr>
+                    <tr>
+                      <td colSpan={3} style={{ padding: '8px', verticalAlign: 'top', minHeight: '60px' }}>
+                        <div
+                          ref={bilgiRef}
+                          contentEditable
+                          suppressContentEditableWarning
+                          title="Düzenlemek için tıklayın"
+                          style={{
+                            minHeight: '50px',
+                            outline: 'none',
+                            cursor: 'text',
+                            lineHeight: '1.8',
+                            fontFamily: 'inherit',
+                            fontSize: 'inherit',
+                          }}
+                          onFocus={e => (e.currentTarget.style.boxShadow = 'inset 0 -2px 0 0 #2563eb')}
+                          onBlur={e => (e.currentTarget.style.boxShadow = 'none')}
+                        />
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
 
@@ -566,7 +715,30 @@ const App: React.FC = () => {
                       <td colSpan={3} style={{ color: 'blue', textDecoration: 'underline', fontWeight: 'bold' }}>Paket URL</td>
                     </tr>
                     <tr>
-                      <td colSpan={3} style={{ height: '30px' }}>&nbsp;</td>
+                      <td colSpan={3} style={{ padding: 0 }}>
+                        <input
+                          type="text"
+                          value={editablePackageUrl}
+                          onChange={e => setEditablePackageUrl(e.target.value)}
+                          title="Düzenlemek için tıklayın"
+                          style={{
+                            width: '100%',
+                            border: 'none',
+                            outline: 'none',
+                            background: 'transparent',
+                            fontFamily: 'inherit',
+                            fontSize: 'inherit',
+                            color: '#1d4ed8',
+                            fontStyle: 'italic',
+                            padding: '6px 8px',
+                            cursor: 'text',
+                            boxSizing: 'border-box',
+                            minHeight: '30px',
+                          }}
+                          onFocus={e => (e.currentTarget.style.boxShadow = 'inset 0 -2px 0 0 #2563eb')}
+                          onBlur={e => (e.currentTarget.style.boxShadow = 'none')}
+                        />
+                      </td>
                     </tr>
                   </tbody>
                 </table>

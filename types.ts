@@ -10,6 +10,7 @@ export interface JiraTask {
   statusCategoryChanged: string; // New field for reporting history info
   issueType: string; // New field to distinguish Bug vs Story
   externalRcId: string; // New field for ISCEPEXTRC-xxxx
+  releaseNotes: string; // Release Notes field from Jira
 }
 
 export interface ReportConfig {

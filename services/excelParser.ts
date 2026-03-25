@@ -84,7 +84,14 @@ export const parseJiraExcel = async (file: File): Promise<JiraTask[]> => {
             statusCategoryChanged: cleanStr(row['Status Category Changed'] || row['Statü Değişim Tarihi'] || row['Updated'] || ''),
 
             issueType: parsedIssueType,
-            externalRcId: externalRcId
+            externalRcId: externalRcId,
+            releaseNotes: (() => {
+            const key = Object.keys(row).find(k =>
+              k.toLowerCase().includes('release') ||
+              k.toLowerCase().includes('sürüm not')
+            );
+            return key ? cleanStr(row[key]) : '';
+          })()
           };
         });
 

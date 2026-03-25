@@ -9,32 +9,53 @@ Ekiplerin Jira üzerinden alınan listeleri manuel olarak düzenleyip e-postaya 
 - Kayıtların platformlarını (iOS/Android vb.) otomatik tespit eder.
 - Mail (Örn: Outlook) dostu tablo sistemleri üretir.
 - Tarihsel filtreleme sayesinde (örneğin önceki bir pakette gönderilen gelişmeleri) ayırır ve farklı bir renkte (gri/soluk) vurgulayarak mükerrer test/kontrol eforunu engeller.
+- Kritik alanların rapor üzerinden doğrudan düzenlenmesine olanak sunar.
 
-## 3. Temel Özellikler (Mevcut Durum - v2.3.0)
+## 3. Temel Özellikler (Mevcut Durum - v2.5.2)
 Aşağıdaki fonksiyonel gereksinimler hâlihazırda uygulamada çalışır durumdadır:
 
 ### 3.1. Veri Yükleme ve Akıllı Ayrıştırma (Parsing)
 - **Çoklu Format Desteği:** Jira'dan alınan hem `HTML` hem de `Excel (.xls, .xlsx)` dosyalarını kabul edip okuyabilir.
 - **Kategori Ayrımı:**
-  - **Talepler (Story/Task/Sub-task):** "Bug" sınıfında olmayan ve "CCRSP" ID'sine sahip kayıtlarla birlikte, Task ve Sub-task türleri (CCRSP numarası olmasa dahi tire `-` atanarak) "Talepler" tablosuna aktarılır.
-  - **Tamamlanan Kayıtlar (Bugs):** Issue Type "Bug" olanlar veya etiket/açıklama metninde `"external"` veya `"accessibilitybug"` barındıran veya dış sistem (Örn: ISCEPEXTRC) bağlantısı bulunan kayıtlar otomatik olarak süzülüp hata çözümleri listesinde yer alır.
-- **Akıllı Backlog ve Defect ID Taraması:** Karmaşık metin hücreleri arasından Regex ile doğru "CCRSP" veya "ISCEPEXTRC / ISCOREXT" referansları tespit edilir. Tüm tablolarda (Talepler, Hatalar, Tarihçeler) gösterim için öncelik "CCRSP" numarasına aittir. Eğer "CCRSP" yoksa, varsa "ISCEPEXTRC" veya "ISCOREXT" gösterilir. Bunların hiçbiri yoksa orijinal anahtar (örn: ISCEPANDROID, ISCEPIPHONE vb.) gösterilmez, tabloya direkt "-" (tire) atanır.
-- **Epic Birleştirme:** Aynı "Epic Name" altındaki bağıntılı talepler, tabloda `rowSpan` yapılarak tekil ve temiz bir biçimde birleştirilir.
-- **Platform Tespit Sistemi:** Orijinal bilet kodlarındaki (örn: ISCEPANDROID, ISCEPIPHONE) ifadelere bakılarak dokümanın sol alanına ve paket tablosuna projenin ortamı (iOS / Android) otomatik yazılır.
+  - **Talepler (Story/Task/Sub-task):** \"Bug\" sınıfında olmayan ve \"CCRSP\" ID'sine sahip kayıtlarla birlikte, Task ve Sub-task türleri (CCRSP numarası olmasa dahi tire `-` atanarak) \"Talepler\" tablosuna aktarılır.
+  - **Tamamlanan Kayıtlar (Bugs):** Issue Type \"Bug\" olanlar veya etiket/açıklama metninde `\"external\"` veya `\"accessibilitybug\"` barındıran veya dış sistem (Örn: ISCEPEXTRC) bağlantısı bulunan kayıtlar otomatik olarak süzülüp hata çözümleri listesinde yer alır.
+- **Akıllı Backlog ve Defect ID Taraması:** Karmaşık metin hücreleri arasından Regex ile doğru \"CCRSP\" veya \"ISCEPEXTRC / ISCOREXT\" referansları tespit edilir. Tüm tablolarda öncelik \"CCRSP\" numarasına aittir; yoksa \"ISCEPEXTRC/ISCOREXT\"; hiçbiri yoksa \"-\" gösterilir.
+- **Epic Birleştirme:** Aynı \"Epic Name\" altındaki bağıntılı talepler, tabloda `rowSpan` yapılarak tekil ve temiz biçimde birleştirilir.
+- **Platform Tespit Sistemi:** Orijinal bilet kodlarındaki (örn: ISCEPANDROID, ISCEPIPHONE) ifadelere bakılarak platform (iOS / Android) otomatik tespit edilir.
+- **Release Notes Ayrıştırma:** Jira'daki `customfield_10082` (Release Notes) veya "Sürüm Notu" (Case-insensitive) alanı, HTML ve Excel exportlarında otomatik okunur. `#` ile başlayan teknik alt detaylar filtrelenir; geçerli notlar Kısım B'ye aktarılır.
 
 ### 3.2. Arayüz ve UI/UX Davranışları
-- **Filtreleme & Uyarı Mekanizması:** "Tarih Bazlı Filtrele" seçeneği ile kullanıcı sisteme bir tarih verdiğinde o tarihten önce çözülmüş/güncellenmiş taskların arkaplanı soluk gri (`#334155`) yapılır. Böylece mail alıcısı nelerin yeni test edilmesi gerektiğini anlar.
-- **Akıllı Uyarı Ekranları (Modals):** Kullanıcı filtre girmeden doğrudan dışa aktarım almak istediğinde uyarıcı bir Pop-up penceresi ("Yine de İşleme Devam Et" / "TAMAM") ile süreci doğrulatır ("TAMAM" dendiğinde scroll otomatik filtre tablosuna kayar).
-- **Bildirimler:** Tüm kayıtların kopyalandığını bildiren yeşil başarı bildirimleri gösterilir ve eşzamanlı olarak sayfanın başına çıkılır (instant scroll).
+- **Filtreleme & Uyarı Mekanizması:** \"Tarih Bazlı Filtrele\" ile o tarihten önce çözülmüş taskların arka planı soluk gri yapılır.
+- **Akıllı Uyarı Ekranları (Modals):** Filtre girilmeden dışa aktarım istendiğinde doğrulama pop-up'ı gösterilir.
+- **Bildirimler:** Başarı/hata bildirimleri gösterilir, sayfa başına otomatik kaydırma yapılır.
+- **Düzenlenebilir (Editable) Rapor Alanları:** Oluşturulan raporda belirli alanlar, tablo formatını ve ölçülerini bozmadan doğrudan düzenlenebilir:
+  - **Sürüm Bilgisi (Kısım A):** Sürüm numarası tıklanarak değiştirilebilir.
+  - **Tamamlanan Kayıtlar – Açıklama:** Her hata kaydının açıklaması satır satır düzenlenebilir.
+  - **Belirtilmesi Gerekenler (Kısım B):** Jira Release Notes'tan otomatik doldurulur (bold özet + normal açıklama formatında). İçerik serbestçe düzenlenebilir.
+  - **Bilinen Durumlar (Kısım B):** Boş olarak gelir, kullanıcı serbest metin girebilir.
+  - **Paket URL Notu (Kısım C):** Varsayılan uyarı metni ile gelir (`Paket linkini ekle ve paketi BETA'lamayı...`), düzenlenebilir, mavi-italik stilinde gösterilir.
 
-### 3.3. Dışa Aktarım (Export) Modülleri
-- **PDF İndir (html2pdf):** Sayfanın anlık anlık UI görüntüsünü kırpılmadan ve sorunsuz (epic satır kaymaları önlenmiş şekilde) A4 formatlı PDF belgesine dönüştürür.
-- **Mail İçin Kopyala:** MS Outlook ve Mac Mail dahil e-posta istemcilerinde bozuma uğramayacak özel üretim (custom CSS injection - tablolara hapsedilmiş HTML) formatında Pano'ya (Clipboard) kayıtları kopyalar. (Bilgi sembolünün bile e-postada hatasız daire çizmesi için min-width sınırlamaları içerir).
+### 3.3. Belirtilmesi Gerekenler – Release Notes Entegrasyonu
+- Dosya yüklendiğinde, Jira'dan gelen ve `None` veya boş olmayan Release Notes değerleri otomatik olarak ayrıştırılır.
+- `#` ile başlayan teknik iç notlar (test adımları, sub-bullet'lar) filtrelenerek dışarıda bırakılır.
+- Her kayıt şu formatta listelenir: **`• [Task Açıklaması]`** `: [Release Notes]` (Summary **kalın**, açıklama normal)
+- Alan `contentEditable` div olarak render edilir — kullanıcı otomatik gelen içeriği düzenleyebilir veya silip sıfırdan yazabilir.
+- Bu içerik hem PDF'e hem Mail Kopyası'na yansır.
 
-## 4. Gelecek Geliştirmeler (Roadmap / Backlog)
-- **(Beklemede) Dinamik Sürüm Notları ("Belirtilmesi Gerekenler"):** Jira üzerinde tüm BT (IT) ekibinin kullanabileceği özel bir `Release Notes` (Sürüm Notu) alanı açılacak. Uygulama, dosya yüklendiğinde bu alanı okuyarak Jira ID'leri ile birlikte `Kısım B: Sürüm Detayları - Belirtilmesi Gerekenler` alanına satır satır bu açıklamaları dinamik olarak enjekte edecek. (Böylece takımdaki her üyenin kendi geliştirmesine bıraktığı not, sürüm e-postasında şablona tam oturacak.)
+### 3.4. Dışa Aktarım (Export) Modülleri
+- **PDF İndir (html2pdf):** Sayfanın anlık UI görüntüsünü A4 formatlı PDF belgesine dönüştürür. Editable alanlardaki son hali PDF'e yansır.
+- **Mail İçin Kopyala:** MS Outlook ve Mac Mail'de bozuma uğramayan özel HTML formatında panoya kopyalar. Editable alanlardaki (Sürüm, Açıklamalar, Belirtilmesi Gerekenler, Bilinen Durumlar, Paket URL) tüm düzenlemeler mail kopyasına yansır.
+
+## 4. Versiyon Geçmişi (Özet)
+| Versiyon | Tarih | Değişiklik |
+|---|---|---|
+| v2.3.2 | 13.03.2026 | ID öncelik sırası (CCRSP > ISCEPEXTRC > -) |
+| v2.4.0 | 17.03.2026 | Sürüm bilgisi ve Paket URL editable yapıldı |
+| v2.5.0 | 18.03.2026 | Release Notes ayrıştırma + Belirtilmesi Gerekenler otomatik doldurma |
+| v2.5.1 | 18.03.2026 | `#` satır filtresi eklendi |
+| v2.5.2 | 18.03.2026 | Bold summary formatı, Bilinen Durumlar editable, PRD güncellendi |
 
 ---
-*(Kural: Bu doküman, uygulamada yapılan her teknik, fonksiyonel ve süreç bazlı değişiklikte [örn. prod güncellemeleri] tıpkı versiyon dosyası gibi otomatik olarak güncellenecektir.)*
+*(Kural: Bu doküman, uygulamada yapılan her teknik, fonksiyonel ve süreç bazlı değişiklikte tıpkı versiyon dosyası gibi otomatik olarak güncellenecektir.)*
 <br/>
-**Son Güncelleme:** v2.3.2 - 13.03.2026
+**Son Güncelleme:** v2.5.2 - 18.03.2026
