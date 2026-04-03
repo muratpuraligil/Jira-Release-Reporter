@@ -60,8 +60,9 @@ Aşağıdaki fonksiyonel gereksinimler hâlihazırda uygulamada çalışır duru
 | v2.5.6 | 03.04.2026 | Tamamlanan kayıtlarda anahtar/ID önceliği kesinleştirildi: ISCEPIPHONE/ISCEPANDROID vb. biletlerin içinde CCRSP varsa 'Defect ID' olarak o kullanılır; yoksa ISCEPEXTRC/ISCOREXT; ikisi de yoksa '-' setlenir. |
 | v2.5.7 | 03.04.2026 | Tamamlanan kayıtlar açıklaması satıra sığmama sorunu word-wrap ile çözüldü. CCRSP başlığı tablodan eşleşmese bile artık hücredeki metin (html/excel) üzerinden zorla süzülüp alınabiliyor. |
 | v2.5.8 | 03.04.2026 | Giriş sayfasındaki bilgilendirme metinleri güncellendi (Jira filter sayfalarından Export/HTML report - filter fields formatı için uyarı eklendi, uzantı uyarıları kaldırıldı). Uygulama Prod ortamına deploy edildi. |
+| v2.5.9 | 03.04.2026 | React 19 contentEditable state crash (beyaz ekran) problemi auto-resizing textarea componenti kullanılarak çözüldü. |
 
 ---
 *(Kural: Bu doküman, uygulamada yapılan her teknik, fonksiyonel ve süreç bazlı değişiklikte tıpkı versiyon dosyası gibi otomatik olarak güncellenecektir.)*
 <br/>
-**Son Güncelleme:** v2.5.8 - 03.04.2026
+**Son Güncelleme:** v2.5.9 - 03.04.2026

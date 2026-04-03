@@ -681,10 +681,20 @@ const App: React.FC = () => {
                             className={isGrayedOut ? "bg-slate-300" : "bg-white"}
                             style={{ fontStyle: isGrayedOut ? 'italic' : 'normal', color: isGrayedOut ? '#334155' : 'inherit', padding: 0 }}
                           >
-                            <div
-                              contentEditable
-                              suppressContentEditableWarning
-                              onBlur={e => setEditedBugSummaries(prev => ({ ...prev, [idx]: e.currentTarget.innerText }))}
+                            <textarea
+                              value={editedBugSummaries[idx] ?? defaultSummary}
+                              onChange={e => {
+                                setEditedBugSummaries(prev => ({ ...prev, [idx]: e.target.value }));
+                                e.target.style.height = 'auto';
+                                e.target.style.height = e.target.scrollHeight + 'px';
+                              }}
+                              onFocus={e => {
+                                e.currentTarget.style.boxShadow = 'inset 0 -2px 0 0 #2563eb';
+                                e.target.style.height = 'auto';
+                                e.target.style.height = e.target.scrollHeight + 'px';
+                              }}
+                              onBlur={e => (e.currentTarget.style.boxShadow = 'none')}
+                              rows={1}
                               style={{
                                 width: '100%',
                                 border: 'none',
@@ -697,18 +707,18 @@ const App: React.FC = () => {
                                 padding: '4px 8px',
                                 cursor: 'text',
                                 boxSizing: 'border-box',
-                                wordWrap: 'break-word',
-                                whiteSpace: 'pre-wrap',
-                                minHeight: '24px' // input'un eski yüksekliğini korumak için
+                                resize: 'none',
+                                overflow: 'hidden',
+                                minHeight: '30px',
+                                lineHeight: '1.5'
                               }}
-                              onFocus={e => (e.currentTarget.style.boxShadow = 'inset 0 -2px 0 0 #2563eb')}
-                              onBlurCapture={e => {
-                                e.currentTarget.style.boxShadow = 'none';
-                                setEditedBugSummaries(prev => ({ ...prev, [idx]: e.currentTarget.innerText }))
+                              ref={(el) => {
+                                if (el) {
+                                  el.style.height = 'auto';
+                                  el.style.height = el.scrollHeight + 'px';
+                                }
                               }}
-                            >
-                              {editedBugSummaries[idx] ?? defaultSummary}
-                            </div>
+                            />
                           </td>
                         </tr>
                       );
