@@ -54,8 +54,14 @@ Aşağıdaki fonksiyonel gereksinimler hâlihazırda uygulamada çalışır duru
 | v2.5.0 | 18.03.2026 | Release Notes ayrıştırma + Belirtilmesi Gerekenler otomatik doldurma |
 | v2.5.1 | 18.03.2026 | `#` satır filtresi eklendi |
 | v2.5.2 | 18.03.2026 | Bold summary formatı, Bilinen Durumlar editable, PRD güncellendi |
+| v2.5.3 | 28.03.2026 | Dify workflow fix, AI tool fixes |
+| v2.5.4 | 01.04.2026 | Release Notes içerisindeki liste (bullet) ve formatlama yapılarının birebir (HTML tag olarak) korunarak rapora (ve e-postaya) yansıması sağlandı |
+| v2.5.5 | 03.04.2026 | Dışa aktarılan listede bulunan "Bug" ve eşleştiği "CCRSP" var ise; hata özetinin otomatik olarak CCRSP'nin kendi başlığı (summary) ile ezilmesi (çapraz eşleşme) kurgulandı |
+| v2.5.6 | 03.04.2026 | Tamamlanan kayıtlarda anahtar/ID önceliği kesinleştirildi: ISCEPIPHONE/ISCEPANDROID vb. biletlerin içinde CCRSP varsa 'Defect ID' olarak o kullanılır; yoksa ISCEPEXTRC/ISCOREXT; ikisi de yoksa '-' setlenir. |
+| v2.5.7 | 03.04.2026 | Tamamlanan kayıtlar açıklaması satıra sığmama sorunu word-wrap ile çözüldü. CCRSP başlığı tablodan eşleşmese bile artık hücredeki metin (html/excel) üzerinden zorla süzülüp alınabiliyor. |
+| v2.5.8 | 03.04.2026 | Giriş sayfasındaki bilgilendirme metinleri güncellendi (Jira filter sayfalarından Export/HTML report - filter fields formatı için uyarı eklendi, uzantı uyarıları kaldırıldı). Uygulama Prod ortamına deploy edildi. |
 
 ---
 *(Kural: Bu doküman, uygulamada yapılan her teknik, fonksiyonel ve süreç bazlı değişiklikte tıpkı versiyon dosyası gibi otomatik olarak güncellenecektir.)*
 <br/>
-**Son Güncelleme:** v2.5.2 - 18.03.2026
+**Son Güncelleme:** v2.5.8 - 03.04.2026

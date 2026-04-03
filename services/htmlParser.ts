@@ -58,6 +58,16 @@ export const parseJiraHtml = async (file: File): Promise<JiraTask[]> => {
       return cells[idx]?.textContent?.trim() || '';
     };
 
+    const getInnerHtml = (className: string): string => {
+      const el = row.querySelector(`.${className}`);
+      return el ? el.innerHTML.trim() : '';
+    };
+
+    const getHtmlByIndex = (idx: number): string => {
+      if (idx === -1) return '';
+      return cells[idx]?.innerHTML.trim() || '';
+    };
+
     // 1. Original Key (e.g. ISCEPANDROID-1234)
     const originalKey = getText('issuekey') || getText('key') || row.querySelector('.key')?.textContent?.trim() || getByIndex(headers.findIndex(h => h.textContent?.toLowerCase().includes('key'))) || 'N/A';
 
@@ -72,16 +82,27 @@ export const parseJiraHtml = async (file: File): Promise<JiraTask[]> => {
     // 2. Backlog ID Logic (Prioritize CCRSP key)
     let backlogId = '-';
     let externalRcId = '-';
+    let ccrspSummaryHint = '';
 
     // Search the ENTIRE row text to reliably capture linked issues 
     // regardless of the exact Jira column name they exported
     const allRowText = row.textContent || '';
 
-    const ccrspMatch = allRowText.match(/CCRSP[\s-]*\d+/i);
-    if (ccrspMatch) {
-      let m = ccrspMatch[0].replace(/\s+/g, '').toUpperCase();
-      if (!m.includes('-')) m = m.replace('CCRSP', 'CCRSP-');
-      backlogId = m;
+    // Also look at all cells for a more precise match
+    for (const cell of cells) {
+      const txt = cell.textContent || '';
+      const m = txt.match(/CCRSP[\s-]*\d+/i);
+      if (m) {
+        let matchStr = m[0].replace(/\s+/g, '').toUpperCase();
+        if (!matchStr.includes('-')) matchStr = matchStr.replace('CCRSP', 'CCRSP-');
+        backlogId = matchStr;
+        
+        const afterText = txt.substring(txt.indexOf(m[0]) + m[0].length).trim();
+        if (afterText.length > 2) {
+          ccrspSummaryHint = afterText.replace(/^[-:,]\s*/, '').split('ISCEP')[0].split('ISCOR')[0].trim();
+        }
+        break; // found the id and maybe the hint
+      }
     }
 
     const extRcMatch = allRowText.match(/(ISCEPEXTRC|ISCOREXT)[\s-]*\d+/i);
@@ -137,7 +158,8 @@ export const parseJiraHtml = async (file: File): Promise<JiraTask[]> => {
       statusCategoryChanged,
       issueType,
       externalRcId,
-      releaseNotes: getText('customfield_10082') || (releaseNotesIndex !== -1 ? getByIndex(releaseNotesIndex) : '')
+      ccrspSummaryHint,
+      releaseNotes: getInnerHtml('customfield_10082') || (releaseNotesIndex !== -1 ? getHtmlByIndex(releaseNotesIndex) : '')
     };
   });
 

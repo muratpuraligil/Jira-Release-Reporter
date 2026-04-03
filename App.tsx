@@ -195,19 +195,42 @@ const App: React.FC = () => {
     const items = approvedTasks
       .filter(t => t.releaseNotes && t.releaseNotes.trim() !== '' && t.releaseNotes.toLowerCase() !== 'none')
       .map(t => {
-        const cleanedNote = t.releaseNotes
-          .split('\n')
-          .filter(line => !line.trim().startsWith('#'))
-          .join(' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-        return cleanedNote ? { summary: t.summary, note: cleanedNote } : null;
+        let rawNote = t.releaseNotes.trim();
+        
+        // Jira'dan gelen plain text içerisinde HTML tag'i yoksa (Excel vb. kaynaklı ise)
+        // \n'leri <br/>'e çevir ki satırlar düzgün çıksın.
+        if (!/<[a-z][\s\S]*>/i.test(rawNote)) {
+          // # ile başlayan veya benzer gereksiz metadata satırlarını çıkar
+          rawNote = rawNote.split('\n')
+            .filter(line => !line.trim().startsWith('#'))
+            .join('<br/>');
+        } else {
+          // HTML ise, satır aralarında bazen gereksiz boşluklar olabiliyor,
+          // ancak yapılarını bozmamak için string replace'leri daha dikkatli yapmalıyız. 
+          // Jira'nın <style> taglerini temizleyebiliriz (bize sorun çıkarmasın diye)
+          rawNote = rawNote.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+        }
+
+        // --- JIRA WIKI MARKUP TEMİZLİĞİ ---
+        // Kullanıcı "h2." veya "*" gibi ham Jira etiketleriyle de karşılaşabiliyor (özellikle Excel'den).
+        
+        // 1. h1., h2., h3... ifadelerini satır başlarından kaldır
+        rawNote = rawNote.replace(/(^|<br\s*\/?>|<\/?div[^>]*>|<\/?p[^>]*>|\n)\s*h[1-6]\.\s+/gi, '$1');
+        
+        // 2. Satır başındaki "* " ifadelerini (bullet) kalın nokta (&bull;) simgesine dönüştür
+        rawNote = rawNote.replace(/(^|<br\s*\/?>|<\/?div[^>]*>|<\/?p[^>]*>|\n)\s*\*\s+/gi, '$1&bull; ');
+        
+        // 3. *bold yazı* kelimelerini <strong>bold yazı</strong> yap
+        // Bunu yaparken yanlızca tag dışındaki normal yazıları (veya paragraf içi metni) bulalım:
+        rawNote = rawNote.replace(/\*([^*<>\n]+)\*/g, '<strong>$1</strong>');
+
+        return rawNote ? { summary: t.summary, note: rawNote } : null;
       })
       .filter((x): x is { summary: string; note: string } => x !== null);
 
     if (items.length > 0) {
       notesRef.current.innerHTML = items
-        .map(item => `<div><strong>${item.summary}</strong> : ${item.note}</div>`)
+        .map(item => `<div style="margin-bottom: 12px;"><strong>${item.summary}</strong> : <div style="margin-top: 6px;">${item.note}</div></div>`)
         .join('');
     } else {
       notesRef.current.innerHTML = '<div><br></div>';
@@ -300,14 +323,22 @@ const App: React.FC = () => {
       if (!ref.current) return '<ul><li>&nbsp;</li></ul>';
       const raw = ref.current.innerHTML.trim();
       if (!raw || raw === '<div><br></div>') return '<ul><li>&nbsp;</li></ul>';
-      // div taglerini ayır ve başındaki bullet/tire karakterlerini temizle
+      
+      // Dacă içerik zaten bir liste içeriyorsa, bozmamak adına direkt döndürelim (sadece yeni eklenen div'ler için)
+      if (raw.toLowerCase().includes('<ul') || raw.toLowerCase().includes('<ol') || raw.toLowerCase().includes('<h')) {
+          return raw;
+      }
+      
+      // Basit text girişi varsa div'leri li'ye çevir:
       const items = raw.split(/<\/?div>/)
         .filter(s => s.trim() && !/^<br\s*\/?>$/.test(s.trim()))
         .map(s => s.trim().replace(/^[\u2022\-*]\s*/, ''));
       if (items.length === 0) return '<ul><li>&nbsp;</li></ul>';
       return `<ul style="margin:0;padding-left:20px">${items.map(i => `<li>${i}</li>`).join('')}</ul>`;
     };
-    const notesMailHtml = getRefAsListHtml(notesRef as React.RefObject<HTMLDivElement>);
+
+    // notesRef HTML'i zaten yapılı (heading, ul, vb. var), olduğu gibi aktaralım
+    const notesMailHtml = notesRef.current ? notesRef.current.innerHTML.trim() || '<div><br></div>' : '<div><br></div>';
     const bilgiMailHtml = getRefAsListHtml(bilgiRef as React.RefObject<HTMLDivElement>);
 
     const getActiveEpicRowSpan = (taskIndex: number, list: JiraTask[]) => {
@@ -337,8 +368,19 @@ const App: React.FC = () => {
       const isGrayedOut = filterCutoffTimestamp !== null && parseJiraDate(t.statusCategoryChanged) <= filterCutoffTimestamp;
       const defectId = t.backlogId !== '-' ? t.backlogId : (t.externalRcId !== '-' ? t.externalRcId : '-');
       const idContent = defectId !== '-' ? `<a href="https://commencis.atlassian.net/browse/${defectId}" style="color: ${isGrayedOut ? '#334155' : 'blue'}; text-decoration: underline;">${defectId}</a>` : defectId;
-      const summary = editedBugSummaries[idx] ?? t.summary;
-      return `<tr><td style="${borderStyleNoWrap} ${isGrayedOut ? 'background-color: #cbd5e1; font-style: italic;' : 'background-color: #ffffff;'}">${idContent}</td><td style="${borderStyle} ${isGrayedOut ? 'background-color: #cbd5e1; font-style: italic;' : 'background-color: #ffffff;'}">${summary}</td></tr>`;
+      
+      let defaultSummary = t.summary;
+      if (t.backlogId !== '-') {
+        const relatedCcrspTask = tasks.find(pt => pt.originalKey === t.backlogId);
+        if (relatedCcrspTask) {
+          defaultSummary = relatedCcrspTask.summary;
+        } else if (t.ccrspSummaryHint) {
+          defaultSummary = t.ccrspSummaryHint;
+        }
+      }
+      
+      const summary = editedBugSummaries[idx] ?? defaultSummary;
+      return `<tr><td style="${borderStyleNoWrap} ${isGrayedOut ? 'background-color: #cbd5e1; font-style: italic;' : 'background-color: #ffffff;'}">${idContent}</td><td style="${borderStyle} ${isGrayedOut ? 'background-color: #cbd5e1; font-style: italic;' : 'background-color: #ffffff;'} word-wrap: break-word; white-space: pre-wrap;">${summary}</td></tr>`;
     }).join('') : `<tr><td style="${borderStyleNoWrap} height: 20px;">&nbsp;</td><td style="${borderStyle}">&nbsp;</td></tr>`;
 
     const infoRow = filterCutoffTimestamp !== null ? `<div style="padding: 2px 0;"><table border="0" cellpadding="0" cellspacing="0"><tr><td style="vertical-align: middle; padding-right: 6px;"><table border="0" cellpadding="0" cellspacing="0" width="16" height="16" style="width: 16px; height: 16px; border-collapse: separate;"><tr><td align="center" valign="middle" width="16" height="16" style="width: 16px; height: 16px; min-width: 16px; max-width: 16px; min-height: 16px; max-height: 16px; padding: 0; margin: 0; border: 1.5px solid #ea580c; border-radius: 8px; color: #ea580c; font-family: Calibri, sans-serif; font-size: 10px; font-weight: bold; line-height: 12px;">i</td></tr></table></td><td style="font-family: Calibri, sans-serif; font-size: 10.5pt; font-weight: bold; font-style: italic; color: #ea580c; vertical-align: middle; padding: 0;">Aşağıda testi yeni tamamlanan kayıtlar beyaz , önceki paketler ile iletilmiş olanlar gri olarak belirtilmiştir.</td></tr></table></div>` : '';
@@ -508,7 +550,7 @@ const App: React.FC = () => {
           <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-in fade-in zoom-in duration-500">
             <div className="bg-blue-50 p-8 rounded-full mb-6"><FileText className="w-20 h-20 text-blue-500" /></div>
             <h2 className="text-2xl font-bold text-slate-800 mb-2">Rapor Oluşturmak İçin Dosya Yükleyin</h2>
-            <p className="text-slate-500 max-w-lg mx-auto mb-8">Jira'dan alınan Excel, CSV veya HTML dosyasını yükleyin.</p>
+            <p className="text-slate-500 max-w-lg mx-auto mb-8">Jira filter sayfalarından Export/HTML report - filter fields ile export alarak dosyaları yükleyiniz!!!</p>
             <div className="flex gap-4 mb-6">
               <a href="https://commencis.atlassian.net/issues?filter=18441" target="_blank" rel="noreferrer" className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg font-semibold shadow transition flex items-center gap-2 transform hover:scale-105"><Smartphone className="w-5 h-5" />AND Filter</a>
               <a href="https://commencis.atlassian.net/issues?filter=18442" target="_blank" rel="noreferrer" className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg font-semibold shadow transition flex items-center gap-2 transform hover:scale-105"><MonitorSmartphone className="w-5 h-5" />IOS Filter</a>
@@ -517,7 +559,6 @@ const App: React.FC = () => {
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
                 <UploadCloud className="w-10 h-10 mb-3 text-slate-400 group-hover:text-blue-500 transition-colors" />
                 <p className="mb-2 text-sm text-slate-500 font-semibold">Dosya seçmek için tıklayın</p>
-                <p className="text-xs text-slate-400">XLSX, CSV veya HTML</p>
               </div>
               <input type="file" accept=".xlsx,.xls,.csv,.html,.htm" onChange={handleFileUpload} className="hidden" />
             </label>
@@ -617,6 +658,20 @@ const App: React.FC = () => {
                     {bugTasks.length > 0 ? bugTasks.map((task, idx) => {
                       const isGrayedOut = filterCutoffTimestamp !== null && parseJiraDate(task.statusCategoryChanged) <= filterCutoffTimestamp;
                       const defectId = task.backlogId !== '-' ? task.backlogId : (task.externalRcId !== '-' ? task.externalRcId : '-');
+                      
+                      // Eğer bu bug'ın bir CCRSP ID'si varsa, aynı Excel/HTML dosyasında bu CCRSP'nin kendi asıl kaydı var mı diye bakalım.
+                      // Eğer varsa, bug'ın kendi başlığı yerine o CCRSP'nin başlığını (summary) varsayılan yapalım.
+                      let defaultSummary = task.summary;
+                      if (task.backlogId !== '-') {
+                        const relatedCcrspTask = tasks.find(t => t.originalKey === task.backlogId);
+                        if (relatedCcrspTask) {
+                          defaultSummary = relatedCcrspTask.summary;
+                        } else if (task.ccrspSummaryHint) {
+                          // Eğer listeye dahil değilse ama Linked Issues kolonunda başlığı belirdiyse onu kullanalım!
+                          defaultSummary = task.ccrspSummaryHint;
+                        }
+                      }
+
                       return (
                         <tr key={idx}>
                           <td className={isGrayedOut ? "bg-slate-300" : "bg-white"} style={{ fontStyle: isGrayedOut ? 'italic' : 'normal', color: isGrayedOut ? '#334155' : 'inherit', whiteSpace: 'nowrap' }}>
@@ -626,10 +681,10 @@ const App: React.FC = () => {
                             className={isGrayedOut ? "bg-slate-300" : "bg-white"}
                             style={{ fontStyle: isGrayedOut ? 'italic' : 'normal', color: isGrayedOut ? '#334155' : 'inherit', padding: 0 }}
                           >
-                            <input
-                              type="text"
-                              value={editedBugSummaries[idx] ?? task.summary}
-                              onChange={e => setEditedBugSummaries(prev => ({ ...prev, [idx]: e.target.value }))}
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              onBlur={e => setEditedBugSummaries(prev => ({ ...prev, [idx]: e.currentTarget.innerText }))}
                               style={{
                                 width: '100%',
                                 border: 'none',
@@ -642,10 +697,18 @@ const App: React.FC = () => {
                                 padding: '4px 8px',
                                 cursor: 'text',
                                 boxSizing: 'border-box',
+                                wordWrap: 'break-word',
+                                whiteSpace: 'pre-wrap',
+                                minHeight: '24px' // input'un eski yüksekliğini korumak için
                               }}
                               onFocus={e => (e.currentTarget.style.boxShadow = 'inset 0 -2px 0 0 #2563eb')}
-                              onBlur={e => (e.currentTarget.style.boxShadow = 'none')}
-                            />
+                              onBlurCapture={e => {
+                                e.currentTarget.style.boxShadow = 'none';
+                                setEditedBugSummaries(prev => ({ ...prev, [idx]: e.currentTarget.innerText }))
+                              }}
+                            >
+                              {editedBugSummaries[idx] ?? defaultSummary}
+                            </div>
                           </td>
                         </tr>
                       );

@@ -33,13 +33,26 @@ export const parseJiraExcel = async (file: File): Promise<JiraTask[]> => {
           // Instead of guessing column names, we scan all values in the row for the ID patterns.
           const allRowValues = Object.values(row).map(v => String(v)).join(' ');
 
-          // Backlog ID Logic (CCRSP)
           let backlogId = '-';
-          const ccrspMatch = allRowValues.match(/CCRSP[\s-]*\d+/i);
-          if (ccrspMatch) {
-            let m = ccrspMatch[0].replace(/\s+/g, '').toUpperCase();
-            if (!m.includes('-')) m = m.replace('CCRSP', 'CCRSP-');
-            backlogId = m;
+          let ccrspSummaryHint = '';
+
+          // Find the cell that contains the CCRSP match to extract both ID and potential summary hint
+          for (const key of Object.keys(row)) {
+            const val = String(row[key]);
+            const m = val.match(/CCRSP[\s-]*\d+/i);
+            if (m) {
+              let matchStr = m[0].replace(/\s+/g, '').toUpperCase();
+              if (!matchStr.includes('-')) matchStr = matchStr.replace('CCRSP', 'CCRSP-');
+              backlogId = matchStr;
+              
+              // Jira exports might include the summary next to the linked key: "CCRSP-3332 Kısayol Widget'ı"
+              const afterText = val.substring(val.indexOf(m[0]) + m[0].length).trim();
+              if (afterText.length > 2) {
+                // Strip leading dashes, colons or commas
+                ccrspSummaryHint = afterText.replace(/^[-:,]\s*/, '').split('ISCEP')[0].split('ISCOR')[0].trim();
+              }
+              break;
+            }
           }
 
           // External RC ID Logic (ISCEPEXTRC or ISCOREXT)
@@ -85,6 +98,7 @@ export const parseJiraExcel = async (file: File): Promise<JiraTask[]> => {
 
             issueType: parsedIssueType,
             externalRcId: externalRcId,
+            ccrspSummaryHint: ccrspSummaryHint,
             releaseNotes: (() => {
             const key = Object.keys(row).find(k =>
               k.toLowerCase().includes('release') ||

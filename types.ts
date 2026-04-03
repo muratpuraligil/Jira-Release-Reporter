@@ -11,6 +11,7 @@ export interface JiraTask {
   issueType: string; // New field to distinguish Bug vs Story
   externalRcId: string; // New field for ISCEPEXTRC-xxxx
   releaseNotes: string; // Release Notes field from Jira
+  ccrspSummaryHint?: string; // If 'relates to' cell provides "CCRSP-1234 Summary Text", store "Summary Text" here
 }
 
 export interface ReportConfig {
